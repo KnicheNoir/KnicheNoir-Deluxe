@@ -1,11 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GenerateContentResponse } from "@google/genai";
-import { View, SessionRecord, EntrainmentProfile, AWEFormData, ELSResult, GuidingIntent, GeneralAnalysisResult, ExhaustiveResonanceResult, Toast, UserMessage, AIMessage, SystemMessage, ComponentMessage, AWEAnalysisResult, PalmistryAnalysisResult, VoiceResonanceAnalysisResult, AstrianDayPlannerResult, NetworkPatternResult, MelodyPatternResult, ApocryphalAnalysisResult, DeepELSAnalysisResult, MeditationResult, CartographerAnalysisResults, MusicalComposition, AIProductionNotes, InstrumentProfile, ResonancePotentialMapResult, VisualChallenge, AttunementResult, InstructionalCompositionSession, ActiveEntrainmentSession } from './types';
-import { GeminiService, AstrianEngine, AudioService } from './services';
-import { hebraicCartographerSchema, hellenisticCartographerSchema, apocryphalAnalysisSchema, aweSynthesisSchema, palmistryAnalysisSchema, astrianDayPlannerSchema, voiceResonanceAnalysisSchema, deepElsAnalysisSchema, meditationScriptSchema, aiProductionNotesSchema, instructionalCompositionAnalysisSchema } from './constants';
+import { View, SessionRecord, EntrainmentProfile, AWEFormData, ELSResult, GuidingIntent, GeneralAnalysisResult, ExhaustiveResonanceResult, Toast, UserMessage, AIMessage, SystemMessage, ComponentMessage, AWEAnalysisResult, PalmistryAnalysisResult, VoiceResonanceAnalysisResult, AstrianDayPlannerResult, NetworkPatternResult, MelodyPatternResult, ApocryphalAnalysisResult, DeepELSAnalysisResult, MeditationResult, CartographerAnalysisResults, MusicalComposition, AIProductionNotes, InstrumentProfile, ResonancePotentialMapResult, VisualChallenge, AttunementResult, InstructionalCompositionSession, ActiveEntrainmentSession, MusicComposerOptions } from './types';
+import { GeminiService, AstrianEngine, AudioService, VocalService } from './services';
+import { hebraicCartographerSchema, hellenisticCartographerSchema, apocryphalAnalysisSchema, aweSynthesisSchema, palmistryAnalysisSchema, astrianDayPlannerSchema, voiceResonanceAnalysisSchema, deepElsAnalysisSchema, meditationScriptSchema, aiProductionNotesSchema, instructionalCompositionAnalysisSchema, chakraThemeSchema } from './constants';
 import { LibraryService } from './library';
 import { hebrewNetwork } from './src/dataModels';
-import { SteganographyService } from './steganography';
 import { codex } from './codex';
 
 /**
@@ -62,12 +61,19 @@ export const useAstrianSystem = () => {
     const [activeMeditation, setActiveMeditation] = useState<{script: string, imagePrompts: string[]} | null>(null);
     const [activeEntrainment, setActiveEntrainment] = useState<ActiveEntrainmentSession | null>(null);
     const [activeInstructionalComposition, setActiveInstructionalComposition] = useState<InstructionalCompositionSession | null>(null);
+    const [chakraTheme, setChakraTheme] = useState('neutral');
+    const [isFirstVisit, setIsFirstVisit] = useState(false);
+    const [isTourActive, setIsTourActive] = useState(false);
+    const [tourStep, setTourStep] = useState(0);
+    const [isListening, setIsListening] = useState(false);
+    const [favoritedCompositions, setFavoritedCompositions] = useState<MusicalComposition[]>([]);
 
 
     const isAweComplete = useMemo(() => !!(aweData.fullNameAtBirth && aweData.birthDate && aweData.birthTime && aweData.centralQuestion && aweData.visualCipherConcepts.every(c => c.trim() !== '')), [aweData]);
     const palmistryDone = useMemo(() => sessionHistory.some(msg => msg.type === 'ai' && msg.analysisType === 'palmistry'), [sessionHistory]);
     const voiceDone = useMemo(() => sessionHistory.some(msg => msg.type === 'ai' && msg.analysisType === 'voice'), [sessionHistory]);
     const isPlannerUnlocked = useMemo(() => isAweComplete && palmistryDone && voiceDone, [isAweComplete, palmistryDone, voiceDone]);
+    const ayinVoiceEnabled = useMemo(() => isAweComplete, [isAweComplete]);
 
     const addMessage = useCallback((message: AddMessageArg) => {
         const newMessage = { ...message, id: Date.now().toString(), timestamp: new Date() } as SessionRecord;
@@ -103,11 +109,22 @@ export const useAstrianSystem = () => {
                 const key = AstrianEngine.getWillowLibraryKey();
                 setWillowKey(key);
                 await new Promise(res => setTimeout(res, 250));
+                
+                if (!VocalService.checkSupport()) {
+                     addMessage({type: 'system', text: 'Vocal synthesis & recognition not supported in this browser.'});
+                }
 
                 setCalibrationStatus('System Online.');
                 await new Promise(res => setTimeout(res, 500));
                 
                 setIsCorporaInitialized(true);
+
+                const hasVisited = localStorage.getItem('astrian_has_visited');
+                if (!hasVisited) {
+                    setIsFirstVisit(true);
+                    setIsTourActive(true);
+                    localStorage.setItem('astrian_has_visited', 'true');
+                }
 
             } catch (err) {
                 console.error("Initialization failed:", err);
@@ -116,7 +133,44 @@ export const useAstrianSystem = () => {
             }
         };
         initializeSystem();
-    }, []); 
+    }, [addMessage]); 
+    
+    useEffect(() => {
+        const themes = ['neutral', 'root', 'sacral', 'solarPlexus', 'heart', 'throat', 'thirdEye', 'crown'];
+        let currentIndex = 0;
+
+        const intervalId = setInterval(() => {
+            currentIndex = (currentIndex + 1) % themes.length;
+            setChakraTheme(themes[currentIndex]);
+        }, 30000); // Cycle every 30 seconds
+
+        return () => clearInterval(intervalId);
+    }, []);
+    
+    const startTour = useCallback(() => {
+        VocalService.stopSpeaking();
+        setTourStep(0);
+        setIsTourActive(true);
+    }, []);
+
+    const endTour = useCallback(() => {
+        VocalService.stopSpeaking();
+        setIsTourActive(false);
+    }, []);
+    
+    const speakText = useCallback((text: string) => {
+        // Allow speaking for first tour, otherwise check if AWE is complete
+        if (isFirstVisit || ayinVoiceEnabled) {
+            VocalService.speak(text);
+        }
+    }, [ayinVoiceEnabled, isFirstVisit]);
+
+    const startVoiceInput = useCallback((callback: (text: string) => void) => {
+        if (!ayinVoiceEnabled || isListening) return;
+        setIsListening(true);
+        VocalService.startListening(callback, () => setIsListening(false));
+    }, [ayinVoiceEnabled, isListening]);
+
 
     const stopInstructionalComposition = useCallback(() => {
         setActiveInstructionalComposition(prev => {
@@ -171,7 +225,7 @@ export const useAstrianSystem = () => {
             const productionNotesPrompt = `Generate production notes for the provided musical composition. Available instruments: ${Object.keys(codex.getMusicologyData().instruments).join(', ')}.`;
             const productionNotes = await GeminiService.generate(productionNotesPrompt, aiProductionNotesSchema, sessionHistory, 'Creative');
             
-            const compositionBlob = await AudioService.sequenceAndRenderComposition(composition, productionNotes);
+            const compositionBlob = await AudioService.sequenceAndRenderComposition(composition, { melody: codex.getInstrumentProfile('Crystal Bells'), harmony: codex.getInstrumentProfile('Ethereal Pad'), bass: codex.getInstrumentProfile('Deep Bass') });
             const { stop, analyserNode, audioUrl } = AudioService.renderAndPlayInstructionalComposition(compositionBlob, solfeggioFrequency);
             
             // Step 5: Launch UI
@@ -184,21 +238,146 @@ export const useAstrianSystem = () => {
             setIsLoading(false);
         }
     }, [addMessage, isAweComplete, aweData, sessionHistory]);
+
+    const toggleFavoriteComposition = useCallback((compositionId: string) => {
+        let targetComposition: MusicalComposition | null = null;
+        
+        const newHistory = sessionHistory.map(record => {
+            if (record.type === 'ai' && record.analysisType === 'musical_composition' && record.result.id === compositionId) {
+                const updatedComposition = { ...record.result, isFavorite: !record.result.isFavorite };
+                targetComposition = updatedComposition;
+                return { ...record, result: updatedComposition };
+            }
+            return record;
+        });
+        setSessionHistory(newHistory);
+
+        if (targetComposition) {
+            setFavoritedCompositions(prev => {
+                if (targetComposition!.isFavorite) {
+                    if (!prev.find(c => c.id === compositionId)) {
+                        return [...prev, targetComposition!];
+                    }
+                } else {
+                    return prev.filter(c => c.id !== compositionId);
+                }
+                return prev;
+            });
+            addToast(targetComposition.isFavorite ? 'Composition favorited!' : 'Composition unfavorited.', 'success');
+        }
+    }, [sessionHistory, addToast]);
+
+
+    const generateAndDisplayComposition = useCallback(async (options: MusicComposerOptions) => {
+        setIsLoading(true);
+        setError(null);
+        addMessage({ type: 'system', text: `Composing based on "${options.prompt}"...` });
+
+        try {
+            const prompt = `
+                Compose a complete, therapeutic musical piece based on the following parameters. Return a valid JSON object matching the MusicalComposition structure (excluding id, isFavorite, audioUrl).
+                - User's Core Prompt: "${options.prompt}"
+                - Key: ${options.key}
+                - Mode: ${options.mode}
+                - Instruments to use: Melody (${options.instrumentProfiles.melody.name}), Harmony (${options.instrumentProfiles.harmony.name}), Bass (${options.instrumentProfiles.bass.name}).
+                
+                The composition must have three tracks: 'melody', 'harmony', and 'bass'. The music should reflect the mood of the core prompt. The composition should be around 60-90 seconds long.
+            `;
+            
+            const compositionJSONString = await GeminiService.generateTextOnly(prompt, sessionHistory, 'Creative');
+            const parsedComposition = JSON.parse(compositionJSONString);
+
+            addMessage({ type: 'system', text: 'Rendering audio...' });
+            
+            const compositionBlob = await AudioService.sequenceAndRenderComposition(parsedComposition, options.instrumentProfiles);
+            const audioUrl = URL.createObjectURL(compositionBlob);
+
+            const finalComposition: MusicalComposition = {
+                ...parsedComposition,
+                id: `comp_${Date.now()}`,
+                isFavorite: false,
+                audioUrl: audioUrl,
+            };
+
+            addMessage({
+                type: 'ai',
+                text: `I have composed a piece for you based on "${options.prompt}".`,
+                analysisType: 'musical_composition',
+                result: finalComposition,
+            });
+
+        } catch (e: any) {
+            console.error("Composition generation failed:", e);
+            setError(`Composition protocol failed: ${e.message}`);
+            addMessage({ type: 'system', text: `Error: ${e.message}` });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addMessage, sessionHistory]);
+
+    const handleComposeCommand = useCallback((prompt: string) => {
+        addMessage({
+            type: 'component',
+            component: 'music_composer',
+            props: {
+                prompt: prompt.trim(),
+                onSubmit: generateAndDisplayComposition,
+            }
+        });
+        setIsLoading(false); 
+    }, [addMessage, generateAndDisplayComposition]);
     
     const startEntrainment = useCallback((profile: EntrainmentProfile) => {
         const { stop } = AudioService.startBinauralBeat(profile);
         setActiveEntrainment({ profile, stop });
     }, []);
 
-    const stopEntrainment = useCallback(() => {
-        setActiveEntrainment(prev => {
-            if (prev?.stop) {
-                prev.stop();
+    const stopEntrainment = useCallback(async () => {
+        const sessionToStop = activeEntrainment;
+        if (!sessionToStop) return;
+    
+        sessionToStop.stop();
+        setActiveEntrainment(null);
+        addMessage({ type: 'system', text: `Entrainment session '${sessionToStop.profile.name}' concluded. Generating post-session integration...` });
+    
+        setIsLoading(true);
+        setError(null);
+        try {
+            const { profile } = sessionToStop;
+            const prompt = `
+                A user has just finished a brainwave entrainment session using the '${profile.name}' profile.
+                - **Description**: "${profile.description}"
+                - **Target Frequency**: ${profile.targetFrequency}Hz (${profile.name.match(/\(([^)]+)\)/)?.[1] || 'wave'})
+                
+                Generate a supportive follow-up to help them transition back and integrate the session's effects.
+                Provide three sections with clear headings in markdown:
+                1.  **Gentle Inquiry**: 2-3 open-ended questions for reflection on the state they achieved.
+                2.  **Lingering Affirmations**: 2-3 short, positive affirmations related to the session's goal.
+                3.  **Practical Integration**: 2-3 simple, actionable tips to maintain the benefits of the session.
+                Your tone should be clear, calming, and encouraging.
+            `;
+            const responseText = await GeminiService.generateTextOnly(prompt, sessionHistory, 'Creative');
+            addMessage({ type: 'ai', text: responseText });
+        } catch (e: any) {
+            setError(e.message);
+            addMessage({ type: 'system', text: `Failed to generate post-session integration: ${e.message}` });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addMessage, activeEntrainment, sessionHistory]);
+
+    const analyzeAndSetChakraTheme = useCallback(async (query: string) => {
+        try {
+            const prompt = `Analyze the user's query: "${query}". Based on its core theme (e.g., survival/grounding, emotions/creativity, intellect/power, love/connection, communication, intuition, spirituality), classify it into one of the seven chakras. Respond with a single JSON object: {"chakra": "theme_name"}, where theme_name is one of: "root", "sacral", "solarPlexus", "heart", "throat", "thirdEye", "crown". If the theme is neutral, abstract, or unclassifiable, use "neutral".`;
+            const result = await GeminiService.generate(prompt, chakraThemeSchema);
+            if (result && result.chakra) {
+                setChakraTheme(result.chakra);
             }
-            addMessage({ type: 'system', text: `Entrainment session '${prev?.profile.name}' concluded.` });
-            return null;
-        });
-    }, [addMessage]);
+        } catch (e) {
+            console.warn("Chakra theme analysis failed:", e);
+            // Fail silently to not interrupt user flow.
+        }
+    }, []);
 
     const handleSendMessage = useCallback(async (query: string) => {
         addMessage({ type: 'user', text: query });
@@ -206,10 +385,15 @@ export const useAstrianSystem = () => {
         setError(null);
         lastQueryRef.current = { query, prompt: query };
 
+        analyzeAndSetChakraTheme(query); // Fire-and-forget theme analysis
+
         const commandMatch = query.trim().match(/^°(\w+)\s*(.*)/);
         if (commandMatch) {
             const [, command, args] = commandMatch;
             switch(command.toLowerCase()) {
+                case 'compose':
+                    handleComposeCommand(args);
+                    return;
                 case 'instruct':
                     await handleInstructionCommand(args);
                     return;
@@ -237,19 +421,21 @@ export const useAstrianSystem = () => {
                     return;
                 default:
                      addMessage({ type: 'system', text: `Unknown command: °${command}` });
-            }
-        } else {
-            // Standard chat logic
-            try {
-                const responseText = await GeminiService.generateTextOnly(query, sessionHistory, guidingIntent);
-                addMessage({ type: 'ai', text: responseText });
-            } catch (e: any) {
-                setError(e.message);
+                     setIsLoading(false); // Stop loading for unknown command
+                     return;
             }
         }
 
+        // Standard chat logic
+        try {
+            const responseText = await GeminiService.generateTextOnly(query, sessionHistory, guidingIntent);
+            addMessage({ type: 'ai', text: responseText });
+        } catch (e: any) {
+            setError(e.message);
+        }
+
         setIsLoading(false);
-    }, [addMessage, sessionHistory, guidingIntent, handleInstructionCommand, startEntrainment, isAweComplete]);
+    }, [addMessage, sessionHistory, guidingIntent, handleInstructionCommand, startEntrainment, isAweComplete, analyzeAndSetChakraTheme, handleComposeCommand]);
 
     const handleRetry = useCallback(() => {
         if (lastQueryRef.current) {
@@ -329,10 +515,37 @@ export const useAstrianSystem = () => {
     }, [isCorporaInitialized, isSessionLocked, visualChallenge, generateVisualChallenge]);
 
 
-    const stopMeditation = useCallback(() => {
+    const stopMeditation = useCallback(async () => {
+        const sessionToStop = activeMeditation;
+        if (!sessionToStop) return;
+    
         setActiveMeditation(null);
-        addMessage({type: 'system', text: 'Meditation concluded.'});
-    }, [addMessage]);
+        addMessage({type: 'system', text: 'Meditation concluded. Generating post-session integration...'});
+    
+        setIsLoading(true);
+        setError(null);
+        try {
+            const prompt = `
+                A user has just finished a guided meditation. Here is a snippet of the script they followed:
+                ---
+                ${sessionToStop.script.substring(0, 1500)}... 
+                ---
+                Generate a gentle and insightful follow-up to help them integrate the experience.
+                Provide three sections with clear headings in markdown:
+                1.  **Gentle Inquiry**: 2-3 open-ended questions for reflection.
+                2.  **Lingering Affirmations**: 2-3 short, positive affirmations related to the meditation's theme.
+                3.  **Practical Integration**: 2-3 simple, actionable tips to carry the feeling of the meditation into their day.
+                Your tone should be supportive and grounding. Do not repeat parts of the script in your response.
+            `;
+            const responseText = await GeminiService.generateTextOnly(prompt, sessionHistory, 'Creative');
+            addMessage({ type: 'ai', text: responseText });
+        } catch (e: any) {
+            setError(e.message);
+            addMessage({ type: 'system', text: `Failed to generate post-session integration: ${e.message}` });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addMessage, activeMeditation, sessionHistory]);
     
     // Placeholder functions to satisfy App component
     const handleOpenIngestView = () => addToast('Ingest view not yet implemented.', 'info');
@@ -346,10 +559,16 @@ export const useAstrianSystem = () => {
         isSessionLocked, activeMeditation, visualChallenge, isCorporaInitialized,
         calibrationStatus, calibrationSubtext, activeInstructionalComposition,
         activeEntrainment,
+        chakraTheme,
+        isTourActive, tourStep, isListening, ayinVoiceEnabled,
+        favoritedCompositions,
+        isFirstVisit,
         
         handleSendMessage, handleRetry, setIsModalOpen, setGuidingIntent, handleSynthesizeConnections,
         dismissToast, addMessage, handleNumberInteract, setAweData, handleUnlockSession,
         stopMeditation, generateVisualChallenge, handleOpenIngestView, handleStartPalmistry,
         handleStartVoiceAnalysis, stopInstructionalComposition, stopEntrainment,
+        startTour, endTour, setTourStep, speakText, startVoiceInput,
+        toggleFavoriteComposition,
     };
 };

@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { codex } from './codex';
 import { CascadeCorrespondence, AWEFormData, EntrainmentProfile, ELSResult, ExhaustiveResonanceResult, StrongsEntry, GematriaAnalysis, DeepELSAnalysisResult, GuidingIntent, SessionRecord, UserMessage, AIMessage, SystemMessage, ComponentMessage, NetworkPatternResult, MusicalComposition, NoteEvent, AIProductionNotes, LetterformAnalysis, StructuralAnalysisResult, HarmonicResonanceResult, InstrumentProfile, ResonancePotentialMapResult } from './types';
@@ -18,7 +16,7 @@ import { hebrewNetwork } from './src/dataModels';
 // =================================================================================================
 
 export class AudioService {
-    public static async sequenceAndRenderComposition(composition: MusicalComposition, productionNotes: AIProductionNotes): Promise<Blob> {
+    public static async sequenceAndRenderComposition(composition: MusicalComposition, instrumentProfiles: { melody: InstrumentProfile, harmony: InstrumentProfile, bass: InstrumentProfile }): Promise<Blob> {
         const { tracks } = composition;
         const totalDuration = tracks.reduce((max, track) => {
             const trackEnd = track.notes.reduce((tMax, note) => Math.max(tMax, note.startTime + note.duration), 0);
@@ -34,11 +32,19 @@ export class AudioService {
         masterGain.gain.setValueAtTime(0.3, 0);
         masterGain.connect(offlineContext.destination);
 
-        const instrumentMap = new Map(productionNotes.instruments.map(i => [i.trackName, i.instrumentName]));
+        const trackProfileMap: { [key: string]: InstrumentProfile } = {
+            melody: instrumentProfiles.melody,
+            harmony: instrumentProfiles.harmony,
+            bass: instrumentProfiles.bass,
+            rhythm: instrumentProfiles.melody, // fallback for rhythm track if any
+        };
 
         tracks.forEach(track => {
-            const instrumentName = instrumentMap.get(track.name);
-            const instrumentProfile = codex.getInstrumentProfile(instrumentName || "Default");
+            const instrumentProfile = trackProfileMap[track.name];
+            if (!instrumentProfile) {
+                console.warn(`No instrument profile provided for track: ${track.name}`);
+                return;
+            }
             
             track.notes.forEach(note => {
                 const osc = offlineContext.createOscillator();
@@ -197,6 +203,87 @@ export class AudioService {
         return { stop };
     }
 }
+
+// =================================================================================================
+// --- VOCAL SERVICE (for offline TTS/STT) ---
+// =================================================================================================
+// @ts-ignore
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+export class VocalService {
+    private static synthesis = window.speechSynthesis;
+    private static recognition = SpeechRecognition ? new SpeechRecognition() : null;
+    private static isSupported = !!(VocalService.synthesis && VocalService.recognition);
+
+    public static checkSupport(): boolean {
+        return this.isSupported;
+    }
+
+    public static speak(text: string, onEnd?: () => void) {
+        if (!this.isSupported) return;
+        if (this.synthesis.speaking) {
+            this.synthesis.cancel();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        // Find a playful, friendly voice if possible
+        const voices = this.synthesis.getVoices();
+        let selectedVoice = voices.find(voice => voice.name.includes('Google') && voice.lang.startsWith('en'));
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => voice.lang.startsWith('en') && voice.default);
+        }
+        utterance.voice = selectedVoice || voices[0];
+        utterance.pitch = 1.1; // A slightly higher pitch for playfulness
+        utterance.rate = 1.0;
+        
+        utterance.onend = () => {
+            if (onEnd) onEnd();
+        };
+
+        this.synthesis.speak(utterance);
+    }
+    
+    public static stopSpeaking() {
+        if (this.synthesis.speaking) {
+            this.synthesis.cancel();
+        }
+    }
+
+    public static startListening(onResult: (transcript: string) => void, onEnd: () => void) {
+        if (!this.recognition) return;
+
+        this.recognition.continuous = false;
+        this.recognition.interimResults = false;
+        this.recognition.lang = 'en-US';
+
+        this.recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            onResult(transcript);
+        };
+        
+        this.recognition.onend = () => {
+            onEnd();
+        };
+        
+        this.recognition.onerror = (event) => {
+            console.error('Speech recognition error', event.error);
+            onEnd();
+        };
+
+        try {
+            this.recognition.start();
+        } catch (e) {
+            console.error("Could not start recognition:", e);
+            onEnd();
+        }
+    }
+
+    public static stopListening() {
+        if (this.recognition) {
+            this.recognition.stop();
+        }
+    }
+}
+
 
 // =================================================================================================
 // --- GEMINI API SERVICE ---
@@ -405,7 +492,7 @@ export class AstrianEngine {
 
     public static generateMusicalComposition(hebrewText: string, sourceReference: string): MusicalComposition {
         // Implementation remains the same
-        return { metadata: { key: 'C', mode: 'Ionian', bpm: 120, sourceReference }, tracks: [] };
+        return { id: 'temp', isFavorite: false, metadata: { key: 'C', mode: 'Ionian', bpm: 120, sourceReference }, tracks: [] };
     }
 
     public static generateOfflineProductionNotes(composition: MusicalComposition): AIProductionNotes {

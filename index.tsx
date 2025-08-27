@@ -8,7 +8,10 @@ import {
     CrossReferenceModal, SubliminalGlyph, ToastContainer, SessionUnlockView, MeditationView, AyinGuide,
     StelaCalibrationView,
     InstructionalCompositionView,
-    EntrainmentView
+    EntrainmentView,
+    OracleTicker,
+    EmergentCTA,
+    GuidedTour,
 } from './components';
 
 // =================================================================================================
@@ -25,10 +28,15 @@ const App: FC = () => {
         isCorporaInitialized, calibrationStatus, calibrationSubtext,
         activeInstructionalComposition,
         activeEntrainment,
+        chakraTheme,
+        isTourActive, tourStep, isListening, ayinVoiceEnabled,
+        isFirstVisit,
         handleSendMessage, handleRetry, setIsModalOpen, setGuidingIntent, handleSynthesizeConnections, dismissToast,
         handleNumberInteract, addMessage, handleUnlockSession, stopMeditation, generateVisualChallenge,
         handleOpenIngestView, handleStartPalmistry, handleStartVoiceAnalysis, stopInstructionalComposition,
         stopEntrainment,
+        startTour, endTour, setTourStep, speakText, startVoiceInput,
+        toggleFavoriteComposition,
     } = useAstrianSystem();
     
     const [input, setInput] = useState('');
@@ -86,6 +94,11 @@ const App: FC = () => {
                        input={input}
                        onInputChange={setInput}
                        onSend={handleSend}
+                       onSpeak={speakText}
+                       isVoiceEnabled={ayinVoiceEnabled}
+                       isListening={isListening}
+                       onStartListening={startVoiceInput}
+                       onToggleFavorite={toggleFavoriteComposition}
                    />
                 </main>
                 {isModalOpen && crossRefValue !== null && (
@@ -104,19 +117,36 @@ const App: FC = () => {
     };
 
     return (
-        <div className="app-content-wrapper">
+        <div className="app-content-wrapper" data-chakra-theme={chakraTheme}>
             <KaleidoscopicBackground resonance={resonanceSeed} />
+            <OracleTicker onSelect={handleCommandSelect} />
             <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-            {renderContent()}
-            {isCorporaInitialized && !isSessionLocked && !activeMeditation && !activeInstructionalComposition && !activeEntrainment && (
-                <AyinGuide
-                    onCommandSelect={handleCommandSelect}
-                    onOpenIngest={handleOpenIngestView}
-                    onStartPalmistry={handleStartPalmistry}
-                    onStartVoiceAnalysis={handleStartVoiceAnalysis}
-                    isAweComplete={isAweComplete}
-                    isPlannerUnlocked={isPlannerUnlocked}
+            
+            {isTourActive && (
+                <GuidedTour
+                    step={tourStep}
+                    onNext={setTourStep}
+                    onSkip={endTour}
+                    speak={speakText}
                 />
+            )}
+
+            {renderContent()}
+
+            {isCorporaInitialized && !isSessionLocked && !activeMeditation && !activeInstructionalComposition && !activeEntrainment && (
+                <>
+                    <AyinGuide
+                        onCommandSelect={handleCommandSelect}
+                        onOpenIngest={handleOpenIngestView}
+                        onStartPalmistry={handleStartPalmistry}
+                        onStartVoiceAnalysis={handleStartVoiceAnalysis}
+                        isAweComplete={isAweComplete}
+                        isPlannerUnlocked={isPlannerUnlocked}
+                        onStartTour={startTour}
+                        isFirstVisit={isFirstVisit}
+                    />
+                    <EmergentCTA onTrigger={handleSendMessage} />
+                </>
             )}
         </div>
     );

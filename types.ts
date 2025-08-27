@@ -196,6 +196,9 @@ export interface MusicalTrack {
 
 /** Represents a full musical composition generated from a text. */
 export interface MusicalComposition {
+    id: string;
+    isFavorite: boolean;
+    audioUrl?: string;
     metadata: {
         key: string;
         mode: string;
@@ -251,6 +254,17 @@ export interface InstructionalCompositionSession {
     symbolicMantra: string;
 }
 
+/** User-defined options for creating a musical composition. */
+export interface MusicComposerOptions {
+    prompt: string;
+    key: string;
+    mode: string;
+    instrumentProfiles: {
+        melody: InstrumentProfile;
+        harmony: InstrumentProfile;
+        bass: InstrumentProfile;
+    }
+}
 
 // =================================================================================================
 // --- SESSION & CHAT TYPES ---
@@ -283,40 +297,47 @@ export interface AIMessage extends BaseSessionRecord {
     result?: any;
 }
 
-// FIX: Refactored ComponentMessage into a discriminated union for type safety.
-// This ensures that the `props` for each `component` type are correctly typed,
-// resolving errors in the ChatView component.
-interface AttunementComponentMessage extends BaseSessionRecord {
+interface BaseComponentMessage extends BaseSessionRecord {
     type: 'component';
-    component: 'attunement';
-    props: AttunementResult;
+    component: string;
+    props: any;
     disabled?: boolean;
 }
 
-interface EntrainmentSelectionComponentMessage extends BaseSessionRecord {
-    type: 'component';
+interface AttunementComponentMessage extends BaseComponentMessage {
+    component: 'attunement';
+    props: AttunementResult;
+}
+
+interface EntrainmentSelectionComponentMessage extends BaseComponentMessage {
     component: 'entrainment_selection';
     props: {
         profiles: EntrainmentProfile[];
         onSelect: (profile: EntrainmentProfile) => void;
     };
-    disabled?: boolean;
 }
 
-interface EntrainmentInfoComponentMessage extends BaseSessionRecord {
-    type: 'component';
+interface EntrainmentInfoComponentMessage extends BaseComponentMessage {
     component: 'entrainment_info';
     props: {
         profiles: EntrainmentProfile[];
     };
-    disabled?: boolean;
+}
+
+interface MusicComposerComponentMessage extends BaseComponentMessage {
+    component: 'music_composer';
+    props: {
+        prompt: string;
+        onSubmit: (options: MusicComposerOptions) => void;
+    };
 }
 
 /** A message that renders a custom component instead of text. */
 export type ComponentMessage =
     | AttunementComponentMessage
     | EntrainmentSelectionComponentMessage
-    | EntrainmentInfoComponentMessage;
+    | EntrainmentInfoComponentMessage
+    | MusicComposerComponentMessage;
 
 /** A union type representing any possible record in the session history. */
 export type SessionRecord = UserMessage | AIMessage | SystemMessage | ComponentMessage;

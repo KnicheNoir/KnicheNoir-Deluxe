@@ -12,6 +12,17 @@ import { Type } from "@google/genai";
 // --- API SCHEMAS ---
 // =================================================================================================
 
+export const chakraThemeSchema = {
+    type: Type.OBJECT,
+    properties: {
+        chakra: {
+            type: Type.STRING,
+            enum: ['root', 'sacral', 'solarPlexus', 'heart', 'throat', 'thirdEye', 'crown', 'neutral']
+        }
+    },
+    required: ['chakra']
+};
+
 export const instructionalCompositionAnalysisSchema = {
     type: Type.OBJECT,
     properties: {
