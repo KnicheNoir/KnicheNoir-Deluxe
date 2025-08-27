@@ -1,0 +1,6 @@
+{
+  "//": "==================================================================",
+  "SAFE_TO_DELETE": "This file is obsolete and can be safely deleted.",
+  "//_": "==================================================================",
+  "reason": "All viable permissions have been consolidated into 'metadata.json'. This file is no longer used by the application."
+}
