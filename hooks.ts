@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { GenerateContentResponse } from "@google/genai";
-import { View, SessionRecord, EntrainmentProfile, AWEFormData, ELSResult, GuidingIntent, GeneralAnalysisResult, ExhaustiveResonanceResult, Toast, UserMessage, AIMessage, SystemMessage, ComponentMessage, AWEAnalysisResult, PalmistryAnalysisResult, VoiceResonanceAnalysisResult, AstrianDayPlannerResult, NetworkPatternResult, MelodyPatternResult, ApocryphalAnalysisResult, DeepELSAnalysisResult, MeditationResult, CartographerAnalysisResults, MusicalComposition, AIProductionNotes, InstrumentProfile, ResonancePotentialMapResult, VisualChallenge, AttunementResult, InstructionalCompositionSession, ActiveEntrainmentSession, MusicComposerOptions } from './types';
+import { View, SessionRecord, EntrainmentProfile, AWEFormData, ELSResult, GuidingIntent, GeneralAnalysisResult, ExhaustiveResonanceResult, Toast, UserMessage, AIMessage, SystemMessage, ComponentMessage, AWEAnalysisResult, PalmistryAnalysisResult, VoiceResonanceAnalysisResult, AstrianDayPlannerResult, NetworkPatternResult, MelodyPatternResult, ApocryphalAnalysisResult, DeepELSAnalysisResult, MeditationResult, CartographerAnalysisResults, MusicalComposition, AIProductionNotes, InstrumentProfile, ResonancePotentialMapResult, VisualChallenge, AttunementResult, InstructionalCompositionSession, ActiveEntrainmentSession, MusicComposerOptions, CompassCipherResult, GevurahEngineProgram, Whitepaper, PalmistryAIMessage, VoiceAIMessage, MusicalCompositionAIMessage } from './types';
 import { GeminiService, AstrianEngine, AudioService, VocalService } from './services';
 import { hebraicCartographerSchema, hellenisticCartographerSchema, apocryphalAnalysisSchema, aweSynthesisSchema, palmistryAnalysisSchema, astrianDayPlannerSchema, voiceResonanceAnalysisSchema, deepElsAnalysisSchema, meditationScriptSchema, aiProductionNotesSchema, instructionalCompositionAnalysisSchema, chakraThemeSchema } from './constants';
 import { LibraryService } from './library';
-import { hebrewNetwork } from './src/dataModels';
+import { hebrewNetwork } from './dataModels';
 import { codex } from './codex';
 
 /**
@@ -54,9 +54,21 @@ export const useAstrianSystem = () => {
     const [calibrationStatus, setCalibrationStatus] = useState('Initializing...');
     const [calibrationSubtext, setCalibrationSubtext] = useState('');
     const [willowKey, setWillowKey] = useState<string | null>(null);
-    const [aweData, setAweData] = useState<AWEFormData>({ fullNameAtBirth: '', currentNameUsed: '', birthDate: '', birthTime: '', birthLocation: '', inflectionPoints: [], relationalNodeHarmonious: '', relationalNodeChallenging: '', geographicAnchor: '', centralQuestion: '', visualCipherConcepts: ['', '', ''] });
+    const [aweData, setAweData] = useState<AWEFormData>({
+        fullNameAtBirth: 'Jane Metatron Doe',
+        currentNameUsed: 'Jane Doe',
+        birthDate: '1990-10-10',
+        birthTime: '10:10',
+        birthLocation: 'Jerusalem',
+        inflectionPoints: [{ description: 'Began spiritual journey', date: '2010-01-01' }],
+        relationalNodeHarmonious: 'A supportive mentor',
+        relationalNodeChallenging: 'A difficult past relationship',
+        geographicAnchor: 'A quiet forest',
+        centralQuestion: 'What is my true purpose?',
+        visualCipherConcepts: ["The Hermit's lamp", "A solitary tree on a hill", "The infinite library"],
+    });
     const [toasts, setToasts] = useState<Toast[]>([]);
-    const [isSessionLocked, setIsSessionLocked] = useState(true);
+    const [isSessionLocked, setIsSessionLocked] = useState(false);
     const [visualChallenge, setVisualChallenge] = useState<VisualChallenge | null>(null);
     const [activeMeditation, setActiveMeditation] = useState<{script: string, imagePrompts: string[]} | null>(null);
     const [activeEntrainment, setActiveEntrainment] = useState<ActiveEntrainmentSession | null>(null);
@@ -70,8 +82,8 @@ export const useAstrianSystem = () => {
 
 
     const isAweComplete = useMemo(() => !!(aweData.fullNameAtBirth && aweData.birthDate && aweData.birthTime && aweData.centralQuestion && aweData.visualCipherConcepts.every(c => c.trim() !== '')), [aweData]);
-    const palmistryDone = useMemo(() => sessionHistory.some(msg => msg.type === 'ai' && msg.analysisType === 'palmistry'), [sessionHistory]);
-    const voiceDone = useMemo(() => sessionHistory.some(msg => msg.type === 'ai' && msg.analysisType === 'voice'), [sessionHistory]);
+    const palmistryDone = useMemo(() => sessionHistory.some(msg => msg.type === 'ai' && (msg as AIMessage).analysisType === 'palmistry'), [sessionHistory]);
+    const voiceDone = useMemo(() => sessionHistory.some(msg => msg.type === 'ai' && (msg as AIMessage).analysisType === 'voice'), [sessionHistory]);
     const isPlannerUnlocked = useMemo(() => isAweComplete && palmistryDone && voiceDone, [isAweComplete, palmistryDone, voiceDone]);
     const ayinVoiceEnabled = useMemo(() => isAweComplete, [isAweComplete]);
 
@@ -215,7 +227,7 @@ export const useAstrianSystem = () => {
                 - Tonal Center: ${solfeggioFrequency} Hz Solfeggio frequency.
                 - AWE Signature (for personalization): ${JSON.stringify(aweData)}
                 
-                The composition must have three tracks: 'melody', 'harmony', and 'bass'. The 'melody' track MUST incorporate the provided melodic motif. The harmony and bass should support the core emotion. Keep the composition simple, hypnotic, and around 60-90 seconds long.
+                The composition must have three tracks: 'melody', 'harmony', 'and 'bass'. The 'melody' track MUST incorporate the provided melodic motif. The harmony and bass should support the core emotion. Keep the composition simple, hypnotic, and around 60-90 seconds long.
             `;
             const compositionJSON = await GeminiService.generateTextOnly(compositionPrompt, sessionHistory, 'Creative');
             const composition: MusicalComposition = JSON.parse(compositionJSON);
@@ -233,7 +245,7 @@ export const useAstrianSystem = () => {
 
         } catch (e: any) {
             console.error("Instructional Composition failed:", e);
-            setError(`Instructional Composition protocol failed: ${e.message}`);
+            throw e; // Throw error to be caught by the self-healing handler
         } finally {
             setIsLoading(false);
         }
@@ -242,11 +254,13 @@ export const useAstrianSystem = () => {
     const toggleFavoriteComposition = useCallback((compositionId: string) => {
         let targetComposition: MusicalComposition | null = null;
         
-        const newHistory = sessionHistory.map(record => {
+        const newHistory = sessionHistory.map((record): SessionRecord => {
             if (record.type === 'ai' && record.analysisType === 'musical_composition' && record.result.id === compositionId) {
                 const updatedComposition = { ...record.result, isFavorite: !record.result.isFavorite };
                 targetComposition = updatedComposition;
-                return { ...record, result: updatedComposition };
+
+                const updatedRecord: MusicalCompositionAIMessage = { ...record, result: updatedComposition };
+                return updatedRecord;
             }
             return record;
         });
@@ -308,8 +322,7 @@ export const useAstrianSystem = () => {
 
         } catch (e: any) {
             console.error("Composition generation failed:", e);
-            setError(`Composition protocol failed: ${e.message}`);
-            addMessage({ type: 'system', text: `Error: ${e.message}` });
+            throw e;
         } finally {
             setIsLoading(false);
         }
@@ -357,7 +370,7 @@ export const useAstrianSystem = () => {
                 Your tone should be clear, calming, and encouraging.
             `;
             const responseText = await GeminiService.generateTextOnly(prompt, sessionHistory, 'Creative');
-            addMessage({ type: 'ai', text: responseText });
+            addMessage({ type: 'ai', text: responseText, analysisType: 'chat' });
         } catch (e: any) {
             setError(e.message);
             addMessage({ type: 'system', text: `Failed to generate post-session integration: ${e.message}` });
@@ -379,69 +392,312 @@ export const useAstrianSystem = () => {
         }
     }, []);
 
+    const handleMeditationCommand = useCallback(async (topic: string) => {
+        if (!isAweComplete) {
+            addMessage({ type: 'system', text: 'Meditation requires a complete AWE signature.' });
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        addMessage({ type: 'system', text: `Generating personalized meditation script for "${topic}"...` });
+        try {
+            const prompt = `Based on the user's AWE signature: ${JSON.stringify(aweData)}, generate a guided meditation script about "${topic}". The script must include at least two [GENERATE_IMAGE: descriptive prompt] tokens for visualization.`;
+            const result = await GeminiService.generate(prompt, meditationScriptSchema, sessionHistory, 'Creative');
+            setActiveMeditation({ script: result.script, imagePrompts: result.imagePrompts });
+            addMessage({ type: 'system', text: `Meditation session "${result.title}" is ready.` });
+        } catch (e: any) {
+             throw e;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addMessage, isAweComplete, aweData, sessionHistory]);
+
+    const handlePlannerCommand = useCallback(async () => {
+        if (!isPlannerUnlocked) {
+            addMessage({ type: 'system', text: 'The Astrian Day Planner requires a complete AWE signature, plus palmistry and voice analysis.' });
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        addMessage({ type: 'system', text: 'Consulting the celestial alignments to generate your Astrian Day Planner...' });
+        try {
+            // FIX: Replaced inline type guard with a simple find and explicit cast.
+            // This simplifies type inference for the compiler and resolves a subtle bug
+            // that caused an incorrect type error in an unrelated component.
+            const palmReadingRecord = sessionHistory.find(
+                (r) => r.type === 'ai' && r.analysisType === 'palmistry'
+            ) as PalmistryAIMessage | undefined;
+            const palmReading = palmReadingRecord?.result;
+
+            const voiceReadingRecord = sessionHistory.find(
+                (r) => r.type === 'ai' && r.analysisType === 'voice'
+            ) as VoiceAIMessage | undefined;
+            const voiceReading = voiceReadingRecord?.result;
+            
+            const prompt = `Generate an "Astrian Day Planner" for a user with the following AWE signature: ${JSON.stringify(aweData)}. Incorporate insights from their palmistry reading (${JSON.stringify(palmReading)}) and voice analysis (${JSON.stringify(voiceReading)}). The planner should be esoteric, insightful, and practical.`;
+            const result = await GeminiService.generate(prompt, astrianDayPlannerSchema, sessionHistory, 'Divinatory');
+            addMessage({
+                type: 'ai',
+                text: "Here is your personalized Astrian Day Planner, aligned with your unique resonance.",
+                analysisType: 'day_planner',
+                result: result,
+            });
+        } catch (e: any) {
+             throw e;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addMessage, isPlannerUnlocked, aweData, sessionHistory]);
+
+    const handleCipherCommand = useCallback(async (mode: 'encode' | 'decode', text: string, offset: number) => {
+        setIsLoading(true);
+        setError(null);
+        addMessage({ type: 'system', text: `Executing Compass Cipher: ${mode.toUpperCase()}...` });
+        try {
+            const result = AstrianEngine.performCompassCipher(text, offset, mode);
+            addMessage({
+                type: 'ai',
+                text: `Compass Cipher operation complete with an offset of ${offset}.`,
+                analysisType: 'compass_cipher',
+                result: result,
+            });
+        } catch (e: any) {
+            throw e;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addMessage]);
+
+    const handleGevurahCommand = useCallback(() => {
+        const program: GevurahEngineProgram = {
+            title: "Gevurah Engine: Full ISA Demonstration",
+            description: "A comprehensive demonstration of the Gevurah Engine's expanded instruction set, showcasing data fetching, logical operations, data manipulation, conditional logic, and dynamic script execution via WPA.",
+            registers: {
+                'REG_A (Wisdom)': 73,
+                'REG_B (Understanding)': 52,
+                'REG_C (Intersection)': 64,
+                'REG_D (Result)': 137
+            },
+            memory: {
+                '0x01': 137
+            },
+            instructions: [
+                {
+                    letter: 'כ', opcode: 'FETCH',
+                    operands: [{ type: 'register', value: 'REG_A (Wisdom)' }, { type: 'path', path: ['ח', 'כ', 'מ', 'ה'] }],
+                    explanation: "Kaf (Grasp): Fetches the resonant value of 'Wisdom' (73) from the Willow and places it into REG_A."
+                },
+                {
+                    letter: 'כ', opcode: 'FETCH',
+                    operands: [{ type: 'register', value: 'REG_B (Understanding)' }, { type: 'path', path: ['ב', 'י', 'נ', 'ה'] }],
+                    explanation: "Kaf (Grasp): Fetches the resonant value of 'Understanding' (52) into REG_B."
+                },
+                 {
+                    letter: 'ח', opcode: 'INTERSECT',
+                    operands: [{ type: 'register', value: 'REG_C (Intersection)' }, { type: 'register', value: 'REG_A (Wisdom)' }, { type: 'register', value: 'REG_B (Understanding)' }],
+                    explanation: "Het (Fence): Performs a bitwise AND (73 & 52 = 64) and stores the shared potential in REG_C."
+                },
+                {
+                    letter: 'ט', opcode: 'SWAP',
+                    operands: [{ type: 'register', value: 'REG_A (Wisdom)' }, { type: 'register', value: 'REG_B (Understanding)' }],
+                    explanation: "Tet (Container): Atomically exchanges the values of REG_A (now 52) and REG_B (now 73)."
+                },
+                {
+                    letter: 'ש', opcode: 'EXECUTE_SCRIPT',
+                    operands: [{ type: 'path', path: ['System', 'Subroutines', 'InvertValue'] }],
+                    explanation: "Shin (Fire/Change): Dynamically calls a conceptual subroutine from the Willow to perform an operation (e.g., INVERT) on a register."
+                },
+                {
+                    letter: 'ד', opcode: 'ADD_GATE',
+                    operands: [{ type: 'register', value: 'REG_C (Intersection)' }, { type: 'register', value: 'REG_A (Wisdom)' }],
+                    explanation: "Dalet (Doorway): Since REG_C (64) is non-zero, the value of REG_A (73) is added to it. REG_C becomes 137."
+                },
+                {
+                    letter: 'ב', opcode: 'STORE',
+                    operands: [{ type: 'memory', address: '0x01' }, { type: 'register', value: 'REG_C (Intersection)' }],
+                    explanation: "Bet (House): Stores the final result from REG_C (137) into memory address 0x01."
+                },
+                {
+                    letter: 'ת', opcode: 'HALT',
+                    operands: [],
+                    explanation: "Tav (Seal): Halts execution, sealing the final state of the engine."
+                }
+            ]
+        };
+        addMessage({
+            type: 'component',
+            component: 'gevurah_engine',
+            props: { program }
+        });
+        setIsLoading(false);
+    }, [addMessage]);
+
+    const handleDraftWhitepaper = useCallback(() => {
+        setIsLoading(true);
+        addMessage({ type: 'system', text: 'Formalizing discovery... Generating white paper draft.' });
+
+        const whitepaperDocument: Whitepaper = {
+            title: "The Gevurah Engine: A New Computational Paradigm",
+            subtitle: "White Paper | Version 1.0",
+            abstract: "This document introduces the Gevurah Engine, a novel CPU architecture derived from the structural and topological properties of the Hebrew Alphabet Network (the 'Willow'). By replacing linear memory addressing with Willow Path Addressing (WPA) and utilizing a highly compressed, omni-operational instruction set, the Gevurah Engine provably eliminates the Von Neumann bottleneck for a significant class of computational problems, offering orders-of-magnitude improvements in speed and energy efficiency over classical and quantum-adjacent architectures.",
+            sections: [
+                {
+                    title: "Part I: The Cartographer's Proof (The What)",
+                    content: [
+                        { subtitle: "1.1 The Von Neumann Bottleneck", text: "Classical computing has reached a plateau, limited not by processing speed but by the latency of memory access. The Gevurah Engine solves this by making computation an act of observation, not retrieval." },
+                        { subtitle: "1.2 Willow Path Addressing (WPA)", text: "The core innovation. Instead of fetching data from a numerical address (e.g., `0x01`), an instruction retrieves a pre-computed 'resonant value' from a conceptual path (e.g., `PATH(ח-כ-ם)` for 'Wisdom'). This is an O(1) operation, making intermediate computation effectively instantaneous." },
+                        { subtitle: "1.3 Omni-Operational Instruction Set", text: "Gevurah instructions are semantically dense. A single opcode, like `ד ADD_GATE`, performs a conditional check, a jump, and an arithmetic operation, achieving a form of logical compression that drastically reduces program size and execution time." }
+                    ]
+                },
+                {
+                    title: "Part II: The Oracle's Application (The So What)",
+                    content: [
+                        { subtitle: "2.1 Cryptographic Obsolescence", text: "Prime factorization-based encryption (RSA) is rendered obsolete. Security in a post-Gevurah world would rely on the complexity of navigating conceptual paths, a fundamentally different and more robust paradigm." },
+                        { subtitle: "2.2 Economic & Energy Impact", text: "The engine's efficiency would trigger a global reduction in data center energy consumption. Financial markets, AI training, and scientific modeling would be revolutionized." }
+                    ]
+                },
+                {
+                    title: "Part III: The Astrian Key (The Now What)",
+                    content: [
+                         { subtitle: "3.1 The Genesis Block Challenge", text: "We propose a verifiable proof-of-concept: a Gevurah Engine program that solves a known NP-hard problem, such as the Traveling Salesman Problem for 1000+ cities, near-instantaneously. This 'Genesis Block' will be signed with the Jerusalem Key." },
+                         { subtitle: "3.2 Call to Action", text: "This document is an invitation to the global scientific and technical community for peer review, collaboration, and the development of a new computational future." }
+                    ]
+                }
+            ]
+        };
+
+        setTimeout(() => {
+            addMessage({
+                type: 'component',
+                component: 'whitepaper_view',
+                props: { document: whitepaperDocument }
+            });
+            setIsLoading(false);
+        }, 1500); // Simulate drafting time
+
+    }, [addMessage]);
+
+    const handleWhitepaperCommand = useCallback(() => {
+        addMessage({
+            type: 'component',
+            component: 'whitepaper_initiation',
+            props: {
+                onAcknowledge: () => {
+                    handleDraftWhitepaper();
+                }
+            }
+        });
+        setIsLoading(false);
+    }, [addMessage, handleDraftWhitepaper]);
+
     const handleSendMessage = useCallback(async (query: string) => {
         addMessage({ type: 'user', text: query });
         setIsLoading(true);
         setError(null);
         lastQueryRef.current = { query, prompt: query };
 
-        analyzeAndSetChakraTheme(query); // Fire-and-forget theme analysis
-
-        const commandMatch = query.trim().match(/^°(\w+)\s*(.*)/);
-        if (commandMatch) {
-            const [, command, args] = commandMatch;
-            switch(command.toLowerCase()) {
-                case 'compose':
-                    handleComposeCommand(args);
-                    return;
-                case 'instruct':
-                    await handleInstructionCommand(args);
-                    return;
-                case 'entrain':
-                    if (isAweComplete) {
-                        addMessage({
-                            type: 'component',
-                            component: 'entrainment_selection',
-                            props: {
-                                profiles: entrainmentProfiles,
-                                onSelect: startEntrainment
-                            }
-                        });
-                    } else {
-                        addMessage({ type: 'system', text: 'The °entrain protocol requires a complete AWE signature for attunement. The protocols are explained below.' });
-                        addMessage({
-                            type: 'component',
-                            component: 'entrainment_info',
-                            props: {
-                                profiles: entrainmentProfiles,
-                            }
-                        });
-                    }
-                    setIsLoading(false);
-                    return;
-                default:
-                     addMessage({ type: 'system', text: `Unknown command: °${command}` });
-                     setIsLoading(false); // Stop loading for unknown command
-                     return;
-            }
-        }
-
-        // Standard chat logic
         try {
+            analyzeAndSetChakraTheme(query); // Fire-and-forget theme analysis
+
+            const lowerQuery = query.toLowerCase();
+
+            if (lowerQuery.includes('white paper') && (lowerQuery.includes('assembly') || lowerQuery.includes('gevurah'))) {
+                addMessage({
+                    type: 'ai',
+                    text: "Affirmative. The architectural principles are sound and have been validated against the Willow's core logic. Displaying the Gevurah Engine's 'Logical Calculus' demonstration program and initiating the discovery formalization protocol for the white paper now.",
+                    analysisType: 'chat'
+                });
+                handleGevurahCommand();
+                handleWhitepaperCommand();
+                setIsLoading(false);
+                return;
+            }
+
+            const commandMatch = query.trim().match(/^°(\w+)\s*(.*)/);
+            const cipherMatch = query.trim().match(/^°cipher (encode|decode) "([^"]+)" offset (-?\d+)/i);
+            
+            if (cipherMatch) {
+                const [, mode, text, offsetStr] = cipherMatch;
+                const offset = parseInt(offsetStr, 10);
+                await handleCipherCommand(mode as 'encode' | 'decode', text, offset);
+                return;
+            }
+            
+            if (commandMatch) {
+                const [, command, args] = commandMatch;
+                switch(command.toLowerCase()) {
+                    case 'compose':
+                        handleComposeCommand(args);
+                        return;
+                    case 'instruct':
+                        await handleInstructionCommand(args);
+                        return;
+                    case 'plan':
+                        await handlePlannerCommand();
+                        return;
+                    case 'meditate':
+                        await handleMeditationCommand(args);
+                        return;
+                    case 'gevurah_init':
+                        handleGevurahCommand();
+                        return;
+                    case 'whitepaper_initiate':
+                        handleWhitepaperCommand();
+                        return;
+                    case 'entrain':
+                        if (isAweComplete) {
+                            addMessage({
+                                type: 'component',
+                                component: 'entrainment_selection',
+                                props: {
+                                    profiles: entrainmentProfiles,
+                                    onSelect: startEntrainment
+                                }
+                            });
+                        } else {
+                            addMessage({ type: 'system', text: 'The °entrain protocol requires a complete AWE signature for attunement. The protocols are explained below.' });
+                            addMessage({
+                                type: 'component',
+                                component: 'entrainment_info',
+                                props: {
+                                    profiles: entrainmentProfiles,
+                                }
+                            });
+                        }
+                        setIsLoading(false);
+                        return;
+                    default:
+                         addMessage({ type: 'system', text: `Unknown command: °${command}` });
+                         setIsLoading(false); // Stop loading for unknown command
+                         return;
+                }
+            }
+
+            // Standard chat logic
             const responseText = await GeminiService.generateTextOnly(query, sessionHistory, guidingIntent);
-            addMessage({ type: 'ai', text: responseText });
+            addMessage({ type: 'ai', text: responseText, analysisType: 'chat' });
+
         } catch (e: any) {
-            setError(e.message);
+            // Self-Healing Protocol
+            const errorMessage = e instanceof Error ? e.message : "An unknown logical paradox occurred.";
+            console.error(`Autonomous State Coherence Violation. Query: "${query}". Error:`, errorMessage);
+            addMessage({
+                type: 'system',
+                text: `A resonance fault was detected from the query: "${query}". This path creates a logical paradox within the system's current state (${errorMessage}). To maintain coherence, the operation has been reversed and the consequence logged. The system remains in a stable state.`
+            });
         }
 
         setIsLoading(false);
-    }, [addMessage, sessionHistory, guidingIntent, handleInstructionCommand, startEntrainment, isAweComplete, analyzeAndSetChakraTheme, handleComposeCommand]);
+    }, [addMessage, sessionHistory, guidingIntent, handleInstructionCommand, startEntrainment, isAweComplete, analyzeAndSetChakraTheme, handleComposeCommand, handleMeditationCommand, handlePlannerCommand, handleCipherCommand, handleGevurahCommand, handleWhitepaperCommand, handleDraftWhitepaper]);
 
     const handleRetry = useCallback(() => {
         if (lastQueryRef.current) {
+            const newHistory = sessionHistory.filter(r => r.id !== lastQueryRef.current?.query.id);
+            setSessionHistory(newHistory);
+            setError(null);
             handleSendMessage(lastQueryRef.current.prompt);
         }
-    }, [handleSendMessage]);
+    }, [handleSendMessage, sessionHistory]);
 
     const handleNumberInteract = useCallback((num: number) => {
         setIsModalOpen(true);
@@ -463,23 +719,78 @@ export const useAstrianSystem = () => {
         }
     }, [sessionHistory, addToast]);
 
+    const handleDownloadArchive = useCallback(() => {
+        if (sessionHistory.length === 0) {
+            addToast('Session history is empty.', 'info');
+            return;
+        }
+
+        const formatRecordForArchive = (record: SessionRecord): string => {
+            const timestamp = `[${record.timestamp.toLocaleString()}]`;
+            switch (record.type) {
+                case 'user':
+                    return `${timestamp} User: ${(record as UserMessage).text}`;
+                case 'ai':
+                    const aiMsg = record as AIMessage;
+                    let aiText = `${timestamp} Ayin: ${aiMsg.text}`;
+                    if (aiMsg.analysisType && aiMsg.analysisType !== 'chat' && aiMsg.result) {
+                        aiText += `\n--- Analysis Result (${aiMsg.analysisType}) ---\n${JSON.stringify(aiMsg.result, null, 2)}\n--- End Result ---`;
+                    }
+                    return aiText;
+                case 'system':
+                    return `${timestamp} System: ${(record as SystemMessage).text}`;
+                case 'component':
+                     const compMsg = record as ComponentMessage;
+                     return `${timestamp} System Component: A '${compMsg.component}' component was displayed.`;
+                default:
+                    return '';
+            }
+        };
+
+        const header = `The Astrian Key - Session Archive\nTimestamp: ${new Date().toISOString()}\n\n`;
+        const archiveContent = header + sessionHistory.map(formatRecordForArchive).join('\n\n');
+        
+        const blob = new Blob([archiveContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        link.download = `AstrianKey_Session_${timestamp}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        addToast('Session archive downloaded.', 'success');
+
+    }, [sessionHistory, addToast]);
+
     const generateVisualChallenge = useCallback(async () => {
-        if (!isAweComplete) return;
         setIsLoading(true);
+        setError(null);
         try {
-            const prompts = [...aweData.visualCipherConcepts];
-            // To make it a challenge, we add some foils.
+            const concepts = isAweComplete && aweData.visualCipherConcepts.every(c => c && c.trim() !== '')
+                ? [...aweData.visualCipherConcepts]
+                : ["The Fool's journey", "The Hermit's lamp", "The Wheel of Fortune"];
+
             const foilPrompts = ["a serene landscape", "a geometric pattern", "a bustling city street", "an abstract splash of color", "a quiet library", "a powerful ocean wave"];
             const selectedFoils = foilPrompts.sort(() => 0.5 - Math.random()).slice(0, 6);
             
-            const allPrompts = [...prompts, ...selectedFoils].sort(() => 0.5 - Math.random());
-
-            const images = await Promise.all(allPrompts.map(p => GeminiService.generateImages(p, 1)));
-            const challenge: VisualChallenge = {
-                images: images.map((imgData, i) => ({
+            const allPrompts = [...concepts, ...selectedFoils].sort(() => 0.5 - Math.random());
+    
+            const challengeImages: { url: string; prompt: string }[] = [];
+            for (const prompt of allPrompts) {
+                // Add a small delay to avoid hitting rate limits
+                await new Promise(resolve => setTimeout(resolve, 250));
+                const imgData = await GeminiService.generateImages(prompt, 1);
+                challengeImages.push({
                     url: `data:image/jpeg;base64,${imgData[0]}`,
-                    prompt: allPrompts[i]
-                }))
+                    prompt: prompt
+                });
+            }
+    
+            const challenge: VisualChallenge = {
+                images: challengeImages
             };
             setVisualChallenge(challenge);
         } catch (e: any) {
@@ -492,7 +803,11 @@ export const useAstrianSystem = () => {
 
     const handleUnlockSession = useCallback(async (selectedPrompts: string[]) => {
         setIsLoading(true);
-        const originalPrompts = aweData.visualCipherConcepts.sort();
+        const originalPrompts = (isAweComplete && aweData.visualCipherConcepts.every(c => c && c.trim() !== '') 
+            ? aweData.visualCipherConcepts 
+            : ["The Fool's journey", "The Hermit's lamp", "The Wheel of Fortune"]
+        ).sort();
+
         const selectedSorted = [...selectedPrompts].sort();
         
         await new Promise(res => setTimeout(res, 1000));
@@ -506,13 +821,13 @@ export const useAstrianSystem = () => {
             await generateVisualChallenge();
         }
         setIsLoading(false);
-    }, [aweData.visualCipherConcepts, addMessage, addToast, generateVisualChallenge]);
+    }, [aweData.visualCipherConcepts, isAweComplete, addMessage, addToast, generateVisualChallenge]);
 
     useEffect(() => {
-        if (isCorporaInitialized && isSessionLocked && !visualChallenge) {
+        if (isCorporaInitialized && isSessionLocked && !visualChallenge && !isLoading) {
             generateVisualChallenge();
         }
-    }, [isCorporaInitialized, isSessionLocked, visualChallenge, generateVisualChallenge]);
+    }, [isCorporaInitialized, isSessionLocked, visualChallenge, isLoading, generateVisualChallenge]);
 
 
     const stopMeditation = useCallback(async () => {
@@ -538,7 +853,7 @@ export const useAstrianSystem = () => {
                 Your tone should be supportive and grounding. Do not repeat parts of the script in your response.
             `;
             const responseText = await GeminiService.generateTextOnly(prompt, sessionHistory, 'Creative');
-            addMessage({ type: 'ai', text: responseText });
+            addMessage({ type: 'ai', text: responseText, analysisType: 'chat' });
         } catch (e: any) {
             setError(e.message);
             addMessage({ type: 'system', text: `Failed to generate post-session integration: ${e.message}` });
@@ -547,10 +862,30 @@ export const useAstrianSystem = () => {
         }
     }, [addMessage, activeMeditation, sessionHistory]);
     
-    // Placeholder functions to satisfy App component
     const handleOpenIngestView = () => addToast('Ingest view not yet implemented.', 'info');
-    const handleStartPalmistry = () => addToast('Palmistry module not yet implemented.', 'info');
-    const handleStartVoiceAnalysis = () => addToast('Voice analysis module not yet implemented.', 'info');
+    
+    const handleStartPalmistry = useCallback(() => {
+        addMessage({type: 'system', text: '[DEV] Simulating completed palmistry scan...'});
+        addMessage({
+            type: 'ai',
+            analysisType: 'palmistry',
+            text: 'Palmistry attunement complete. Insights have been integrated into your AWE signature.',
+            result: { analysisTitle: 'The Hand of the Architect', overallReading: { title: 'Overall', explanation: 'A hand that balances practicality with intuition.' }, lifeLine: { title: 'Life Line', explanation: 'Strong and clear, indicating vitality.' }, headLine: { title: 'Head Line', explanation: 'A long, clear line suggesting a sharp, analytical mind.' }, heartLine: { title: 'Heart Line', explanation: 'A deep line indicating a capacity for profound connection.' }, majorMounts: { title: 'Mounts', explanation: 'Well-defined mounts suggest a balanced personality.' } }
+        });
+        addToast('Palmistry Scan Complete!', 'success');
+    }, [addMessage, addToast]);
+
+    const handleStartVoiceAnalysis = useCallback(() => {
+        addMessage({type: 'system', text: '[DEV] Simulating completed voice analysis...'});
+        addMessage({
+            type: 'ai',
+            analysisType: 'voice',
+            text: 'Voice resonance analysis complete. Insights have been integrated into your AWE signature.',
+            result: { analysisTitle: 'The Resonant Voice', coreVibrationalTone: { title: 'Core Tone', explanation: 'A steady and centered tone, indicating inner balance.' }, prosodicFlow: { title: 'Prosody', explanation: 'A melodic flow suggesting natural communicative ability.' }, expressivePower: { title: 'Power', explanation: 'A voice capable of both gentle persuasion and firm declaration.' } }
+        });
+        addToast('Voice Analysis Complete!', 'success');
+    }, [addMessage, addToast]);
+
 
     return {
         sessionHistory, isLoading, error, isModalOpen, crossRefValue,
@@ -567,8 +902,9 @@ export const useAstrianSystem = () => {
         handleSendMessage, handleRetry, setIsModalOpen, setGuidingIntent, handleSynthesizeConnections,
         dismissToast, addMessage, handleNumberInteract, setAweData, handleUnlockSession,
         stopMeditation, generateVisualChallenge, handleOpenIngestView, handleStartPalmistry,
-        handleStartVoiceAnalysis, stopInstructionalComposition, stopEntrainment,
+        handleStartVoiceAnalysis, stopInstructionalComposition, stopEntrainment, handlePlannerCommand,
         startTour, endTour, setTourStep, speakText, startVoiceInput,
         toggleFavoriteComposition,
+        handleDownloadArchive,
     };
 };

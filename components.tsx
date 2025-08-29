@@ -13,7 +13,12 @@ import {
     ActiveEntrainmentSession,
     MusicComposerOptions,
     InstrumentProfile,
-    ADSRProfile
+    ADSRProfile,
+    AstrianDayPlannerResult,
+    CompassCipherResult,
+    GevurahEngineProgram,
+    GevurahOperand,
+    Whitepaper
 } from './types';
 
 // =================================================================================================
@@ -110,9 +115,12 @@ export const SessionUnlockView: FC<{
 
     if (!challenge) {
         return (
-            <div className="session-unlock-view">
-                <h2>Generating Visual Cipher...</h2>
-                <div className="loading-spinner"></div>
+            <div className="session-unlock-view card" style={{textAlign: 'center'}}>
+                <h2>Calibrating Visual Cipher...</h2>
+                <p style={{opacity: 0.8, marginTop: '1rem'}}>Rousing the oracle from its slumber. Please stand by.</p>
+                <div className="loading-indicator-inline" style={{marginTop: '2rem'}}>
+                    <div className="typing-indicator"><span></span><span></span><span></span></div>
+                </div>
             </div>
         );
     }
@@ -136,7 +144,7 @@ export const SessionUnlockView: FC<{
                 ))}
             </div>
             <div className="unlock-controls">
-                <button onClick={onRegenerate} disabled={isLoading}>
+                <button onClick={() => onRegenerate()} disabled={isLoading}>
                     Regenerate Cipher
                 </button>
                 <button onClick={handleUnlock} disabled={isLoading || selected.length !== 3}>
@@ -165,7 +173,7 @@ export const MeditationView: FC<{
         <div className="meditation-view">
             <div className="meditation-content">
                 <div className="meditation-script" dangerouslySetInnerHTML={{ __html: formattedScript }} />
-                <button onClick={onFinish} className="meditation-finish-button">
+                <button onClick={() => onFinish()} className="meditation-finish-button">
                     Conclude Meditation
                 </button>
             </div>
@@ -228,7 +236,7 @@ export const InstructionalCompositionView: FC<{
             </div>
             <AudioVisualizer analyserNode={session.analyserNode} />
              <audio src={session.audioUrl} autoPlay controls loop />
-            <button onClick={onStop}>Stop Session</button>
+            <button onClick={() => onStop()}>Stop Session</button>
         </div>
     );
 };
@@ -249,7 +257,7 @@ export const EntrainmentView: FC<{
             <div className="pulsing-orb-container">
                 <div className="pulsing-orb" style={{ animationDuration: `${1 / session.profile.targetFrequency}s` }}></div>
             </div>
-            <button onClick={onStop}>Stop Entrainment</button>
+            <button onClick={() => onStop()}>Stop Entrainment</button>
         </div>
     );
 };
@@ -269,9 +277,9 @@ export const CrossReferenceModal: FC<{
     }, [history, value]);
 
     return (
-        <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal-backdrop" onClick={() => onClose()}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="modal-close" onClick={onClose}>&times;</button>
+                <button className="modal-close" onClick={() => onClose()}>&times;</button>
                 <h2>Cross-Reference: {value}</h2>
                 <div className="modal-section">
                     <h3>Related History</h3>
@@ -299,6 +307,422 @@ export const CrossReferenceModal: FC<{
                         </button>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+// FIX: Added OracleTicker, EmergentCTA, and ChatView components to resolve import errors.
+export const OracleTicker: FC<{ onSelect: (command: string) => void }> = memo(({ onSelect }) => {
+    const items = useMemo(() => [
+        "°compose a song of mourning and rebirth",
+        "°instruct me on overcoming procrastination",
+        "°entrain for deep focus",
+        "Analyze the gematria of 'wisdom'",
+        "Show me the resonance of Genesis 1:1",
+        "°meditate on the concept of 'hesed'",
+        "°plan my day according to my AWE signature",
+        "What is the Tree of Life?",
+    ], []);
+
+    const [currentItemIndex, setCurrentItemIndex] = useState(0);
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setCurrentItemIndex(prev => (prev + 1) % items.length);
+        }, 5000);
+        return () => clearInterval(intervalId);
+    }, [items.length]);
+
+    return (
+        <div className="oracle-ticker-container">
+            <button onClick={() => onSelect(items[currentItemIndex])} className="oracle-ticker-item">
+                <span>✧</span> {items[currentItemIndex]}
+            </button>
+        </div>
+    );
+});
+
+export const EmergentCTA: FC<{ onTrigger: (prompt: string) => void }> = memo(({ onTrigger }) => {
+    const suggestions = useMemo(() => [
+        "What is the nature of the soul?",
+        "Tell me about the Sephirot.",
+        "Synthesize the connection between 'light' and 'word'.",
+    ], []);
+
+    const [suggestion, setSuggestion] = useState('');
+
+    useEffect(() => {
+        setSuggestion(suggestions[Math.floor(Math.random() * suggestions.length)]);
+    }, [suggestions]);
+
+    if (!suggestion) return null;
+
+    return (
+        <div className="emergent-cta-container">
+            <button onClick={() => onTrigger(suggestion)}>
+                <span className="sparkle">✧</span>
+                <span className="cta-text">Explore: {suggestion}</span>
+            </button>
+        </div>
+    );
+});
+
+const GevurahEngineView: FC<{ props: { program: GevurahEngineProgram } }> = ({ props: { program } }) => {
+    const formatOperand = (operand: GevurahOperand) => {
+        switch (operand.type) {
+            case 'register':
+                return <span className="operand-register">{operand.value}</span>;
+            case 'memory':
+                return <span className="operand-memory">MEM[{operand.address}]</span>;
+            case 'literal':
+                return <span className="operand-literal">{operand.value}</span>;
+            case 'path':
+                return <span className="operand-path">PATH({operand.path.join('-')})</span>;
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div className="gevurah-engine-view card">
+            <h3>{program.title}</h3>
+            <p className="overview">{program.description}</p>
+            
+            <div className="engine-state-grid">
+                <div className="registers-display">
+                    <h4>Registers</h4>
+                    <div className="register-grid">
+                        {Object.entries(program.registers).map(([name, value]) => (
+                            <React.Fragment key={name}>
+                                <span className="register-name">{name}</span>
+                                <span className="register-value">{value}</span>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+                <div className="memory-display">
+                    <h4>Memory</h4>
+                    <div className="memory-grid">
+                         {Object.entries(program.memory).map(([address, value]) => (
+                            <React.Fragment key={address}>
+                                <span className="memory-address">{address}</span>
+                                <span className="memory-value">{value}</span>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="gevurah-instructions">
+                <h4>Instruction Set</h4>
+                {program.instructions.map((inst, index) => (
+                    <div key={index} className="gevurah-instruction">
+                        <div className="instruction-header">
+                            <span className="instruction-letter">{inst.letter}</span>
+                            <code className="instruction-code">
+                                {inst.opcode} {inst.operands.map((op, i) => (
+                                    <React.Fragment key={i}>
+                                        {formatOperand(op)}
+                                        {i < inst.operands.length - 1 ? ', ' : ''}
+                                    </React.Fragment>
+                                ))}
+                            </code>
+                        </div>
+                        <p className="instruction-explanation">{inst.explanation}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const DayPlannerView: FC<{ result: AstrianDayPlannerResult }> = ({ result }) => {
+    return (
+        <div className="day-planner-view card">
+            <h3>{result.planTitle}</h3>
+            <p className="overview">{result.overview}</p>
+            <div className="schedule">
+                {result.schedule.map((item, index) => (
+                    <div key={index} className="schedule-item">
+                        <h4>{item.timeRange}</h4>
+                        <p><strong>Activity:</strong> {item.activity}</p>
+                        <p><strong>Esoteric Advice:</strong> {item.esotericAdvice}</p>
+                        <p><strong>Elemental Alignment:</strong> {item.elementalAlignment}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const CompassCipherView: FC<{ result: CompassCipherResult }> = ({ result }) => {
+    return (
+        <div className="compass-cipher-view card">
+            <h3>Compass Cipher: {result.mode.charAt(0).toUpperCase() + result.mode.slice(1)}</h3>
+            <div className="cipher-grid">
+                <strong>Offset</strong>
+                <span>{result.offset}</span>
+                <strong>Input</strong>
+                <code>{result.inputText}</code>
+                <strong>Output</strong>
+                <code>{result.outputText}</code>
+            </div>
+        </div>
+    );
+};
+
+const MusicalCompositionView: FC<{ composition: MusicalComposition, onToggleFavorite: (id: string) => void }> = ({ composition, onToggleFavorite }) => {
+    return (
+        <div className="musical-composition-result card">
+            <h4>Musical Composition: "{composition.metadata.sourceReference}"</h4>
+            <p><strong>Key:</strong> {composition.metadata.key} {composition.metadata.mode} | <strong>BPM:</strong> {composition.metadata.bpm}</p>
+            {composition.audioUrl && <audio controls src={composition.audioUrl} style={{width: '100%'}}></audio>}
+            <button onClick={() => onToggleFavorite(composition.id)} className={`favorite-btn ${composition.isFavorite ? 'favorited' : ''}`}>
+                {composition.isFavorite ? '★ Favorited' : '☆ Favorite'}
+            </button>
+        </div>
+    );
+};
+
+const MusicComposerView: FC<{ props: { prompt: string; onSubmit: (options: MusicComposerOptions) => void; } }> = ({ props }) => {
+    const [key, setKey] = useState('C');
+    const [mode, setMode] = useState('Ionian');
+    const musicology = codex.getMusicologyData();
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        props.onSubmit({
+            prompt: props.prompt,
+            key,
+            mode,
+            instrumentProfiles: {
+                melody: musicology.instruments['Crystal Bells'],
+                harmony: musicology.instruments['Ethereal Pad'],
+                bass: musicology.instruments['Deep Bass'],
+            }
+        });
+    };
+    return (
+        <form onSubmit={handleSubmit} className="component-view card">
+            <h4>Compose Music</h4>
+            <p><strong>Prompt:</strong> {props.prompt}</p>
+            <label>Key: <select value={key} onChange={e => setKey(e.target.value)}>{musicology.keys.map((k: string) => <option key={k} value={k}>{k}</option>)}</select></label>
+            <label>Mode: <select value={mode} onChange={e => setMode(e.target.value)}>{musicology.modes.map((m: any) => <option key={m.name} value={m.name}>{m.name}</option>)}</select></label>
+            <button type="submit">Compose</button>
+        </form>
+    );
+};
+
+const EntrainmentSelectionView: FC<{ props: { profiles: EntrainmentProfile[], onSelect: (profile: EntrainmentProfile) => void; } }> = ({ props }) => {
+    return (
+        <div className="component-view card">
+            <h4>Select Entrainment Protocol</h4>
+            <div className="entrainment-list">
+                {props.profiles.map(profile => (
+                    <button key={profile.name} onClick={() => props.onSelect(profile)} className="entrainment-option">
+                        <strong>{profile.name}</strong>
+                        <p>{profile.description}</p>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const WhitepaperInitiationView: FC<{ props: { onAcknowledge: () => void } }> = ({ props }) => {
+    const [acknowledged, setAcknowledged] = useState(false);
+
+    const handleAcknowledge = () => {
+        setAcknowledged(true);
+        props.onAcknowledge();
+    };
+
+    return (
+        <div className="whitepaper-initiation-view card">
+            <h3>Protocol: Discovery Formalization</h3>
+            <p className="overview">This protocol outlines the creation of a formal white paper to document the Gevurah Engine and its implications. The document will be structured in three parts.</p>
+            
+            <div className="whitepaper-sections">
+                <div className="whitepaper-section">
+                    <h4>I. The Cartographer's Proof (The What)</h4>
+                    <p>The objective technical specification, including mathematical proofs of efficiency, the formal logic of Willow Path Addressing, and comparative analysis against classical and quantum models.</p>
+                </div>
+                <div className="whitepaper-section">
+                    <h4>II. The Oracle's Application (The So What)</h4>
+                    <p>A strategic analysis of the implications for global systems, including cryptography, data center energy consumption, decentralized networks, and national security.</p>
+                </div>
+                <div className="whitepaper-section">
+                    <h4>III. The Astrian Key (The Now What)</h4>
+                    <p>A tangible, non-fungible "Genesis Block": a Gevurah Engine program, signed with the Jerusalem Key, that solves a currently intractable computational problem as a verifiable proof-of-concept.</p>
+                </div>
+            </div>
+
+            <div className="form-actions" style={{justifyContent: 'center'}}>
+                <button className="action-btn" onClick={handleAcknowledge} disabled={acknowledged}>
+                    {acknowledged ? 'Acknowledged' : 'Acknowledge Protocol'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const WhitepaperView: FC<{ props: { document: Whitepaper } }> = ({ props: { document } }) => {
+    const handleShare = async () => {
+        // This is a simulation, so we'll just show a success message.
+        // In a real app, this might generate a PDF or a public link.
+        alert("A secure, verifiable link to this white paper has been copied to your clipboard.");
+    };
+
+    return (
+        <div className="whitepaper-view card">
+            <button className="share-btn" onClick={handleShare} title="Share Document">🔗</button>
+            <div className="whitepaper-header">
+                <h1>{document.title}</h1>
+                <h2>{document.subtitle}</h2>
+            </div>
+            <div className="whitepaper-abstract">
+                <h4>Abstract</h4>
+                <p>{document.abstract}</p>
+            </div>
+            <div className="whitepaper-body">
+                {document.sections.map((section, index) => (
+                    <div key={index} className="wp-section">
+                        <h3>{section.title}</h3>
+                        {Array.isArray(section.content) ? (
+                            section.content.map((item, itemIndex) => (
+                                <div key={itemIndex} className="wp-subsection">
+                                    <h4>{item.subtitle}</h4>
+                                    <p>{item.text}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <p>{section.content}</p>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const MessageView: FC<{ record: SessionRecord, onNumberInteract: (num: number) => void, onToggleFavorite: (id: string) => void }> = ({ record, onNumberInteract, onToggleFavorite }) => {
+    switch (record.type) {
+        case 'user':
+            return <div className="message user-message"><p>{(record as UserMessage).text}</p></div>;
+        case 'system':
+            return <div className="message system-message"><p>{(record as SystemMessage).text}</p></div>;
+        case 'ai':
+            const aiRecord = record as AIMessage;
+            return (
+                <div className="message ai-message">
+                    <div dangerouslySetInnerHTML={{ __html: aiRecord.text.replace(/(\r\n|\n|\r)/gm, "<br />") }}></div>
+                    {aiRecord.analysisType === 'musical_composition' && aiRecord.result && (
+                        <MusicalCompositionView composition={aiRecord.result} onToggleFavorite={onToggleFavorite} />
+                    )}
+                     {aiRecord.analysisType === 'day_planner' && aiRecord.result && (
+                        <DayPlannerView result={aiRecord.result} />
+                    )}
+                     {aiRecord.analysisType === 'compass_cipher' && aiRecord.result && (
+                        <CompassCipherView result={aiRecord.result} />
+                    )}
+                </div>
+            );
+        case 'component':
+            const componentRecord = record as ComponentMessage;
+            switch (componentRecord.component) {
+                case 'music_composer':
+                    return <MusicComposerView props={componentRecord.props} />;
+                case 'entrainment_selection':
+                    return <EntrainmentSelectionView props={componentRecord.props} />;
+                case 'gevurah_engine':
+                    return <GevurahEngineView props={componentRecord.props} />;
+                case 'whitepaper_initiation':
+                    return <WhitepaperInitiationView props={componentRecord.props} />;
+                case 'whitepaper_view':
+                    return <WhitepaperView props={componentRecord.props} />;
+                default:
+                    return <div className="message system-message"><p>Component '{componentRecord.component}' not implemented.</p></div>;
+            }
+        default:
+            return null;
+    }
+};
+
+{/* FIX: Removed unused props to resolve type errors and clean up the component interface. */}
+export const ChatView: FC<{
+    history: SessionRecord[];
+    isLoading: boolean;
+    error: string | null;
+    onRetry: () => void;
+    onNumberInteract: (num: number) => void;
+    input: string;
+    onInputChange: (value: string) => void;
+    onSend: () => void;
+    onSpeak: (text: string) => void;
+    isVoiceEnabled: boolean;
+    isListening: boolean;
+    onStartListening: (callback: (text: string) => void) => void;
+    onToggleFavorite: (id: string) => void;
+}> = ({
+    history, isLoading, error, onRetry, onNumberInteract,
+    input, onInputChange, onSend, onSpeak, isVoiceEnabled, isListening, onStartListening, onToggleFavorite
+}) => {
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [history, isLoading]);
+
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onSend();
+        }
+    };
+
+    const handleVoiceStart = () => {
+        onStartListening((transcript) => {
+            onInputChange(transcript);
+        });
+    };
+
+    return (
+        <div className="chat-view-container">
+            <div className="message-list">
+                {history.map(record => (
+                    <MessageView key={record.id} record={record} onNumberInteract={onNumberInteract} onToggleFavorite={onToggleFavorite} />
+                ))}
+                {isLoading && (
+                     <div className="message ai-message loading-indicator">
+                        <div className="typing-indicator"><span></span><span></span><span></span></div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {error && (
+                <div className="error-view">
+                    <p>Resonance Fault: {error}</p>
+                    <button onClick={onRetry}>Retry Last Query</button>
+                </div>
+            )}
+            
+            <div className="chat-input-area">
+                <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => onInputChange(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Transmit your query..."
+                    disabled={isLoading}
+                />
+                {isVoiceEnabled && (
+                    <button onClick={handleVoiceStart} disabled={isListening || isLoading} className="voice-btn">
+                        {isListening ? '...' : '🎙️'}
+                    </button>
+                )}
+                <button onClick={onSend} disabled={isLoading || !input.trim()}>Send</button>
             </div>
         </div>
     );
@@ -379,7 +803,7 @@ export const GuidedTour: FC<{
                 <h3>{currentStep.title}</h3>
                 <p>{currentStep.text}</p>
                 <div className="form-actions tour-actions">
-                    <button className="action-btn secondary-action" onClick={onSkip}>Skip Tour</button>
+                    <button className="action-btn secondary-action" onClick={() => onSkip()}>Skip Tour</button>
                     <button className="action-btn" onClick={() => isLastStep ? onSkip() : onNext(step + 1)}>
                         {isLastStep ? 'Finish' : 'Next'}
                     </button>
@@ -396,11 +820,13 @@ export const AyinGuide: FC<{
     onOpenIngest: () => void;
     onStartPalmistry: () => void;
     onStartVoiceAnalysis: () => void;
+    onGeneratePlanner: () => void;
     isAweComplete: boolean;
     isPlannerUnlocked: boolean;
     onStartTour: () => void;
     isFirstVisit: boolean;
-}> = ({ onCommandSelect, onOpenIngest, onStartPalmistry, onStartVoiceAnalysis, isAweComplete, isPlannerUnlocked, onStartTour, isFirstVisit }) => {
+    onDownloadArchive: () => void;
+}> = ({ onCommandSelect, onOpenIngest, onStartPalmistry, onStartVoiceAnalysis, onGeneratePlanner, isAweComplete, isPlannerUnlocked, onStartTour, isFirstVisit, onDownloadArchive }) => {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -415,533 +841,52 @@ export const AyinGuide: FC<{
                 }
             }
         };
+
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
     }, []);
 
-    const menuItems = [
-        { label: 'Forge Composition', action: () => onCommandSelect('°compose '), isVisible: true, isDisabled: false, description: 'Open the Musical Composition Forge.' },
-        { label: 'Open Ingest View', action: onOpenIngest, isVisible: true, isDisabled: true, description: 'This feature is not yet implemented.' },
-        { label: 'Start Palmistry Scan', action: onStartPalmistry, isVisible: true, isDisabled: !isAweComplete, description: 'Requires a complete AWE signature.' },
-        { label: 'Start Voice Analysis', action: onStartVoiceAnalysis, isVisible: true, isDisabled: !isAweComplete, description: 'Requires a complete AWE signature.' },
-        { label: 'Plan My Day', action: () => onCommandSelect('°plan my day'), isVisible: true, isDisabled: !isPlannerUnlocked, description: 'Requires AWE signature, palmistry, and voice analysis.' },
-        { label: 'Retake Guided Tour', action: onStartTour, isVisible: !isFirstVisit, isDisabled: false, description: 'Review the application introduction.' }
-    ];
-
+    const handleMenuClick = (action: () => void) => {
+        action();
+        setIsOpen(false);
+    };
+    
+    const handleCommandClick = (command: string) => {
+        onCommandSelect(command);
+        setIsOpen(false);
+    };
 
     return (
-        <div ref={menuRef}>
-            <div className="ayin-guide-container" onClick={handleToggle} aria-haspopup="true" aria-expanded={isOpen} role="button" aria-label="Open Ayin Guide Menu">
-                <span>ע</span>
-            </div>
+        <div className="ayin-guide-container" ref={menuRef}>
+            <button onClick={handleToggle} className={`ayin-guide-button ${isOpen ? 'open' : ''}`} aria-label="Open Ayin Menu">
+                <span className="ayin-icon">ע</span>
+            </button>
             {isOpen && (
-                <div className="ayin-menu-container">
-                    <div className="card">
-                        <p className="ayin-intro">Select a protocol or data source.</p>
-                        <div className="call-sign-menu">
-                            {menuItems.map(item => item.isVisible && (
-                                <button
-                                    key={item.label}
-                                    onClick={() => {
-                                        item.action();
-                                        setIsOpen(false);
-                                    }}
-                                    disabled={item.isDisabled}
-                                    title={item.isDisabled ? item.description : undefined}
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                <div className="ayin-menu card">
+                    {isFirstVisit && <button className="menu-item" onClick={() => handleMenuClick(onStartTour)}>Start Guided Tour</button>}
+                    <div className="menu-separator"></div>
+                    <p className="menu-header">AWE Signature</p>
+                    {!isAweComplete && <p className="menu-status">Incomplete</p>}
+                    <button className="menu-item" onClick={() => handleMenuClick(onStartPalmistry)} disabled={isAweComplete}>Perform Palmistry Scan</button>
+                    <button className="menu-item" onClick={() => handleMenuClick(onStartVoiceAnalysis)} disabled={isAweComplete}>Perform Voice Analysis</button>
+                    {isAweComplete && <p className="menu-status complete">✓ Complete (Dev Mode)</p>}
+                    <div className="menu-separator"></div>
+                    <p className="menu-header">Protocols</p>
+                    <button className="menu-item" onClick={() => handleCommandClick("°instruct ")}>Instruct...</button>
+                    <button className="menu-item" onClick={() => handleCommandClick("°entrain")}>Entrain...</button>
+                    <button className="menu-item" onClick={() => handleCommandClick("°compose ")}>Compose...</button>
+                    <button className="menu-item" onClick={() => handleCommandClick('°cipher encode "" offset 0')}>Cipher...</button>
+                    <div className="menu-separator"></div>
+                    <p className="menu-header">Planner</p>
+                    <button className="menu-item" onClick={() => handleMenuClick(onGeneratePlanner)} disabled={!isPlannerUnlocked}>Generate Day Planner</button>
+                    {!isPlannerUnlocked && <p className="menu-status-small">Requires AWE, Palm, and Voice scans.</p>}
+                    <div className="menu-separator"></div>
+                    <p className="menu-header">Session</p>
+                    <button className="menu-item" onClick={() => handleMenuClick(onDownloadArchive)}>Download Archive</button>
                 </div>
             )}
         </div>
     );
 };
-
-
-// --- NEW HELPER: AudioPlayerWithVisualizer ---
-const AudioPlayerWithVisualizer: FC<{ src: string }> = ({ src }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const analyserRef = useRef<AnalyserNode | null>(null);
-    const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-    const animationFrameRef = useRef<number | undefined>();
-
-    const draw = useCallback(() => {
-        const analyser = analyserRef.current;
-        const canvas = canvasRef.current;
-        if (!analyser || !canvas) return;
-
-        const canvasCtx = canvas.getContext('2d');
-        if (!canvasCtx) return;
-
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        
-        analyser.getByteFrequencyData(dataArray);
-
-        canvasCtx.fillStyle = 'rgba(12, 10, 29, 0.5)';
-        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const barWidth = (canvas.width / bufferLength) * 2.5;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-            const barHeight = dataArray[i] / 2;
-            const r = 92 + (barHeight / 2);
-            const g = 149 + (barHeight / 2);
-            const b = 230 + (barHeight / 2);
-            canvasCtx.fillStyle = `rgb(${r},${g},${b})`;
-            canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-            x += barWidth + 1;
-        }
-
-        animationFrameRef.current = requestAnimationFrame(draw);
-    }, []);
-
-    const setupAudioContext = useCallback(() => {
-        if (!audioRef.current) return;
-
-        if (!audioContextRef.current) {
-            const audioContext = new AudioContext();
-            audioContextRef.current = audioContext;
-            
-            analyserRef.current = audioContext.createAnalyser();
-            analyserRef.current.fftSize = 256;
-
-            sourceRef.current = audioContext.createMediaElementSource(audioRef.current);
-            sourceRef.current.connect(analyserRef.current);
-            analyserRef.current.connect(audioContext.destination);
-        }
-
-        if (animationFrameRef.current === undefined) {
-            draw();
-        }
-    }, [draw]);
-
-    const handlePauseOrEnd = useCallback(() => {
-        if (animationFrameRef.current !== undefined) {
-            cancelAnimationFrame(animationFrameRef.current);
-            animationFrameRef.current = undefined;
-        }
-    }, []);
-
-    useEffect(() => {
-        return () => {
-            if (animationFrameRef.current !== undefined) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
-            audioContextRef.current?.close().catch(e => console.error("Error closing AudioContext:", e));
-        };
-    }, []);
-
-    return (
-        <div className="audio-player-container">
-            <canvas ref={canvasRef} width="300" height="80"></canvas>
-            {/* FIX: The onPlay, onPause, and onEnded event handlers were passed directly, creating a mismatch between the expected arguments (React SyntheticEvent) and the function definitions (no arguments). Wrapping them in arrow functions ensures they are called correctly without arguments. */}
-            <audio ref={audioRef} src={src} controls onPlay={() => setupAudioContext()} onPause={() => handlePauseOrEnd()} onEnded={() => handlePauseOrEnd()}></audio>
-        </div>
-    );
-};
-
-
-// --- NEW COMPONENT: MusicalCompositionView ---
-const MusicalCompositionView: FC<{ composition: MusicalComposition, onToggleFavorite: (id: string) => void }> = ({ composition, onToggleFavorite }) => {
-    return (
-        <div className="card musical-composition-view">
-            <div className="composition-header">
-                <h4>Composition: {composition.metadata.sourceReference}</h4>
-                <button 
-                    className={`favorite-btn ${composition.isFavorite ? 'favorited' : ''}`}
-                    onClick={() => onToggleFavorite(composition.id)}
-                    aria-label={composition.isFavorite ? 'Unfavorite composition' : 'Favorite composition'}
-                >
-                    ★
-                </button>
-            </div>
-            <p><strong>Key:</strong> {composition.metadata.key} {composition.metadata.mode} | <strong>BPM:</strong> {composition.metadata.bpm}</p>
-            {composition.audioUrl && <AudioPlayerWithVisualizer src={composition.audioUrl} />}
-        </div>
-    );
-};
-
-
-// --- NEW COMPONENT: MusicComposerView ---
-const MusicComposerView: FC<{ 
-    prompt: string, 
-    onSubmit: (options: MusicComposerOptions) => void,
-}> = ({ prompt, onSubmit }) => {
-    const musicologyData = useMemo(() => codex.getMusicologyData() || { keys: [], modes: [], instruments: {} }, []);
-    const { keys, modes, instruments } = musicologyData;
-    const instrumentList = useMemo(() => Object.values(instruments) as InstrumentProfile[], [instruments]);
-
-    const [key, setKey] = useState(keys[0] || 'C');
-    const [mode, setMode] = useState(modes[0]?.name || 'Ionian');
-    
-    const [melodyInstrument, setMelodyInstrument] = useState(instrumentList[0] || {} as InstrumentProfile);
-    const [harmonyInstrument, setHarmonyInstrument] = useState(instrumentList[1] || {} as InstrumentProfile);
-    const [bassInstrument, setBassInstrument] = useState(instrumentList[3] || {} as InstrumentProfile);
-    
-    const [isSubmitted, setIsSubmitted] = useState(false);
-
-    const handleSubmit = () => {
-        setIsSubmitted(true);
-        onSubmit({
-            prompt,
-            key,
-            mode,
-            instrumentProfiles: {
-                melody: melodyInstrument,
-                harmony: harmonyInstrument,
-                bass: bassInstrument,
-            }
-        });
-    };
-    
-    const AdsrSliders: FC<{ 
-        instrument: InstrumentProfile, 
-        setInstrument: React.Dispatch<React.SetStateAction<InstrumentProfile>> 
-    }> = ({ instrument, setInstrument }) => {
-         const handleAdsrChange = (param: keyof ADSRProfile, value: number) => {
-            setInstrument(prev => ({ ...prev, adsr: { ...prev.adsr, [param]: value } }));
-        };
-        
-        if (!instrument?.adsr) return null;
-        
-        return (
-            <div className="adsr-sliders">
-                {(Object.keys(instrument.adsr) as Array<keyof ADSRProfile>).map(param => (
-                    <div key={param} className="slider-control">
-                        <label>{param}</label>
-                        <input
-                            type="range"
-                            min="0.01" max="2" step="0.01"
-                            value={instrument.adsr[param]}
-                            onChange={(e) => handleAdsrChange(param, parseFloat(e.target.value))}
-                            disabled={isSubmitted}
-                        />
-                        <span>{instrument.adsr[param].toFixed(2)}</span>
-                    </div>
-                ))}
-            </div>
-        )
-    };
-    
-    return (
-        <div className="card music-composer-view">
-            <h4>Musical Composition Forge</h4>
-            <p><strong>Prompt:</strong> "{prompt}"</p>
-            
-            <div className="composer-controls">
-                 <div className="control-group">
-                     <div className="form-field">
-                        <label>Key</label>
-                        <select value={key} onChange={e => setKey(e.target.value)} disabled={isSubmitted}>{keys.map((k: string) => <option key={k} value={k}>{k}</option>)}</select>
-                     </div>
-                     <div className="form-field">
-                        <label>Mode</label>
-                        <select value={mode} onChange={e => setMode(e.target.value)} disabled={isSubmitted}>{modes.map((m: {name: string}) => <option key={m.name} value={m.name}>{m.name}</option>)}</select>
-                     </div>
-                 </div>
-
-                 <div className="control-group track-group">
-                     <div className="form-field">
-                        <label>Melody Instrument</label>
-                        <select value={melodyInstrument.name} onChange={e => setMelodyInstrument(codex.getInstrumentProfile(e.target.value))} disabled={isSubmitted}>{instrumentList.map(i => <option key={i.name} value={i.name}>{i.name}</option>)}</select>
-                     </div>
-                     <AdsrSliders instrument={melodyInstrument} setInstrument={setMelodyInstrument} />
-                 </div>
-                 
-                 <div className="control-group track-group">
-                     <div className="form-field">
-                        <label>Harmony Instrument</label>
-                        <select value={harmonyInstrument.name} onChange={e => setHarmonyInstrument(codex.getInstrumentProfile(e.target.value))} disabled={isSubmitted}>{instrumentList.map(i => <option key={i.name} value={i.name}>{i.name}</option>)}</select>
-                     </div>
-                     <AdsrSliders instrument={harmonyInstrument} setInstrument={setHarmonyInstrument} />
-                 </div>
-                 
-                 <div className="control-group track-group">
-                     <div className="form-field">
-                        <label>Bass Instrument</label>
-                        <select value={bassInstrument.name} onChange={e => setBassInstrument(codex.getInstrumentProfile(e.target.value))} disabled={isSubmitted}>{instrumentList.map(i => <option key={i.name} value={i.name}>{i.name}</option>)}</select>
-                     </div>
-                     <AdsrSliders instrument={bassInstrument} setInstrument={setBassInstrument} />
-                 </div>
-
-            </div>
-            
-            <div className="form-actions">
-                <button className="action-btn" onClick={handleSubmit} disabled={isSubmitted}>Forge Composition</button>
-            </div>
-        </div>
-    );
-};
-
-
-// Fix: ChatView component and its children
-const Message: FC<{
-    record: SessionRecord;
-    onNumberInteract: (num: number) => void;
-    onSpeak: (text: string) => void;
-    isVoiceEnabled: boolean;
-    onToggleFavorite: (id: string) => void;
-}> = ({ record, onNumberInteract, onSpeak, isVoiceEnabled, onToggleFavorite }) => {
-    
-    const renderContent = (text: string) => {
-        if (!text) return '';
-        const parts = text.split(/(\b\d+\b)/g);
-        return parts.map((part, index) => {
-            if (/^\d+$/.test(part)) {
-                return (
-                    <button key={index} className="interactive-number" onClick={() => onNumberInteract(parseInt(part, 10))}>
-                        {part}
-                    </button>
-                );
-            }
-            return <React.Fragment key={index}>{part}</React.Fragment>;
-        });
-    };
-    
-    switch (record.type) {
-        case 'user':
-             return <div className="chat-message user"><div className="message-bubble">{renderContent((record as UserMessage).text)}</div></div>;
-        case 'ai':
-            const aiMsg = record as AIMessage;
-            if (aiMsg.analysisType === 'musical_composition' && aiMsg.result) {
-                return (
-                    <div className="chat-message ai">
-                        <div className="message-bubble component-bubble">
-                            <p>{renderContent(aiMsg.text)}</p>
-                            <MusicalCompositionView composition={aiMsg.result} onToggleFavorite={onToggleFavorite} />
-                        </div>
-                    </div>
-                );
-            }
-            return (
-                <div className="chat-message ai">
-                    <div className="message-bubble ai-message">
-                        {renderContent(aiMsg.text)}
-                        {isVoiceEnabled && aiMsg.text && (
-                            <button className="speak-btn" onClick={() => onSpeak(aiMsg.text)} aria-label="Read message aloud">
-                                🔊
-                            </button>
-                        )}
-                    </div>
-                </div>
-            );
-        case 'system':
-            return <div className="chat-message system"><div className="message-bubble">{renderContent((record as SystemMessage).text)}</div></div>;
-        case 'component':
-            const compMsg = record as ComponentMessage;
-            if (compMsg.component === 'music_composer') {
-                const props = compMsg.props as { prompt: string; onSubmit: (options: MusicComposerOptions) => void; };
-                return (
-                    <div className="chat-message component">
-                        <div className="message-bubble component-bubble">
-                            <MusicComposerView {...props} />
-                        </div>
-                    </div>
-                );
-            }
-            // Add other component types here as needed
-            return <div className="chat-message system"><div className="message-bubble">Component message: {compMsg.component}</div></div>;
-        default:
-            return null;
-    }
-};
-
-const ChatHistory: FC<{ 
-    history: SessionRecord[]; 
-    onNumberInteract: (num: number) => void;
-    onSpeak: (text: string) => void;
-    isVoiceEnabled: boolean;
-    onToggleFavorite: (id: string) => void;
-}> = memo(({ history, onNumberInteract, onSpeak, isVoiceEnabled, onToggleFavorite }) => {
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [history]);
-
-    return (
-        <div className="chat-history" ref={scrollRef}>
-            {history.map(record => (
-                <Message 
-                    key={record.id} 
-                    record={record} 
-                    onNumberInteract={onNumberInteract}
-                    onSpeak={onSpeak}
-                    isVoiceEnabled={isVoiceEnabled}
-                    onToggleFavorite={onToggleFavorite}
-                />
-            ))}
-        </div>
-    );
-});
-
-const LoadingIndicator = () => (
-    <div className="loading-indicator">
-        <span></span><span></span><span></span>
-    </div>
-);
-
-const ChatInput: FC<{
-    input: string;
-    onInputChange: (value: string) => void;
-    onSend: () => void;
-    isLoading: boolean;
-    isListening: boolean;
-    isVoiceEnabled: boolean;
-    onStartListening: (callback: (text: string) => void) => void;
-}> = ({ input, onInputChange, onSend, isLoading, isListening, isVoiceEnabled, onStartListening }) => {
-    
-    const handleVoiceResult = (transcript: string) => {
-        onInputChange(transcript);
-        // Automatically send after voice input
-        setTimeout(() => onSend(), 100); 
-    };
-    
-    return (
-        <div className="chat-input-container">
-            <input
-                type="text"
-                value={input}
-                onChange={e => onInputChange(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !isLoading && onSend()}
-                placeholder="Ask, and the way shall be opened..."
-                disabled={isLoading}
-                aria-label="Chat input"
-            />
-             <button
-                className={`voice-input-btn ${isListening ? 'listening' : ''}`}
-                onClick={() => onStartListening(handleVoiceResult)}
-                disabled={!isVoiceEnabled || isLoading}
-                aria-label={isListening ? "Listening for voice input" : "Start voice input"}
-            >
-                🎤
-            </button>
-            <button onClick={() => onSend()} disabled={isLoading || !input.trim()} aria-label="Send message">
-                ➢
-            </button>
-        </div>
-    );
-};
-
-export const ChatView: FC<{
-    history: SessionRecord[];
-    isLoading: boolean;
-    error: string | null;
-    onRetry: () => void;
-    guidingIntent: GuidingIntent;
-    onIntentChange: (intent: GuidingIntent) => void;
-    onNumberInteract: (num: number) => void;
-    addMessage: (msg: any) => void;
-    aweData: AWEFormData;
-    setAweData: (data: AWEFormData) => void;
-    palmistryDone: boolean;
-    voiceDone: boolean;
-    input: string;
-    onInputChange: (val: string) => void;
-    onSend: () => void;
-    onSpeak: (text: string) => void;
-    isVoiceEnabled: boolean;
-    isListening: boolean;
-    onStartListening: (cb: (text: string) => void) => void;
-    onToggleFavorite: (id: string) => void;
-}> = (props) => {
-    return (
-        <div className="chat-view-container">
-            <ChatHistory 
-                history={props.history} 
-                onNumberInteract={props.onNumberInteract} 
-                onSpeak={props.onSpeak}
-                isVoiceEnabled={props.isVoiceEnabled}
-                onToggleFavorite={props.onToggleFavorite}
-            />
-            {props.isLoading && <LoadingIndicator />}
-            {props.error && (
-                <div className="error-message">
-                    <p>Resonance Fault: {props.error}</p>
-                    <button onClick={props.onRetry}>Retry</button>
-                </div>
-            )}
-            <div className="chat-input-area">
-                 <ChatInput
-                     input={props.input}
-                     onInputChange={props.onInputChange}
-                     onSend={props.onSend}
-                     isLoading={props.isLoading}
-                     isListening={props.isListening}
-                     isVoiceEnabled={props.isVoiceEnabled}
-                     onStartListening={props.onStartListening}
-                 />
-            </div>
-        </div>
-    );
-};
-
-
-// --- Oracle Ticker ---
-const ORACLE_ITEMS = [
-    "°compose a soundtrack for lucid dreaming",
-    "°instruct me to overcome procrastination",
-    "°entrain for deep meditation",
-    "What is the significance of the number 137?",
-    "Analyze the spiritual meaning of the Challenger disaster.",
-    "Show me the ELS for 'Torah' in Genesis.",
-    "What is the relationship between the Hebrew alphabet and DNA?",
-    "°compose a melody from the spelling of my name",
-    "Tell me about the Golem of Prague.",
-    "Explain the concept of Tzimtzum.",
-    "°instruct me to find clarity",
-    "What is the meaning of the philosopher's stone?",
-];
-export const OracleTicker: FC<{ onSelect: (command: string) => void }> = memo(({ onSelect }) => (
-    <div className="oracle-ticker-container">
-        <div className="oracle-ticker-content">
-            {[...ORACLE_ITEMS, ...ORACLE_ITEMS].map((item, index) => (
-                <span key={index} className="oracle-ticker-item" onClick={() => onSelect(item)}>
-                    {item}
-                </span>
-            ))}
-        </div>
-    </div>
-));
-
-// --- Emergent CTA (Rabbit Hole) ---
-export const EmergentCTA: FC<{ onTrigger: (query: string) => void }> = memo(({ onTrigger }) => {
-    const [isVisible, setIsVisible] = useState(false);
-    const [position, setPosition] = useState({ top: '50%', left: '50%' });
-
-    useEffect(() => {
-        let timeoutId: NodeJS.Timeout;
-
-        const showCTA = () => {
-            setIsVisible(true);
-            const top = `${20 + Math.random() * 60}%`;
-            const left = `${20 + Math.random() * 60}%`;
-            setPosition({ top, left });
-            timeoutId = setTimeout(() => setIsVisible(false), 5000 + Math.random() * 5000);
-        };
-
-        const intervalId = setInterval(showCTA, 15000 + Math.random() * 15000);
-
-        return () => {
-            clearInterval(intervalId);
-            clearTimeout(timeoutId);
-        };
-    }, []);
-
-    if (!isVisible) return null;
-
-    return (
-        <div className="emergent-cta" style={position} onClick={() => onTrigger("Take me down the rabbit hole.")}>
-            ✧
-        </div>
-    );
-});

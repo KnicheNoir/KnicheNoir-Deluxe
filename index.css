@@ -62,6 +62,7 @@
 
 
 html, body {
+  height: 100%;
   margin: 0;
   padding: 0;
   background-color: var(--background-color);
@@ -70,6 +71,10 @@ html, body {
   overflow: hidden; /* Prevent body scroll */
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   transition: background-color 0.8s ease, color 0.8s ease;
+}
+
+#root {
+    height: 100%;
 }
 
 .kaleidoscopic-background {
@@ -86,7 +91,7 @@ html, body {
 .app-content-wrapper {
   position: relative;
   z-index: 1;
-  height: 100vh;
+  height: 100%;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -96,14 +101,13 @@ html, body {
 
 main {
   width: 100%;
-  height: calc(100% - 40px); /* Adjust height for ticker */
+  height: 100%; /* Occupy full available height */
   max-width: 900px;
-  padding: 1rem 0 0 0;
+  padding-top: 40px; /* Space for the ticker */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   position: relative;
-  top: 40px; /* Offset for ticker */
 }
 
 /* --- Oracle Ticker --- */
@@ -419,4 +423,291 @@ main {
 }
 .message-bubble.component-bubble {
     padding-bottom: 0.5rem;
+}
+
+/* --- Day Planner View --- */
+.day-planner-view {
+    margin-top: 1rem;
+}
+.day-planner-view h3 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-top: 0;
+    font-family: 'Orbitron', sans-serif;
+}
+.day-planner-view .overview {
+    font-style: italic;
+    text-align: center;
+    opacity: 0.9;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+.schedule-item {
+    margin-bottom: 1.5rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--secondary-color);
+}
+.schedule-item h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--secondary-color);
+}
+.schedule-item p {
+    margin: 0.25rem 0;
+    line-height: 1.5;
+}
+.schedule-item p strong {
+  color: var(--primary-color);
+  font-weight: normal;
+}
+
+/* --- Compass Cipher View --- */
+.compass-cipher-view {
+    margin-top: 1rem;
+}
+.compass-cipher-view h3 {
+    color: var(--primary-color);
+    font-family: 'Orbitron', sans-serif;
+    margin-top: 0;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 0.5rem;
+}
+.cipher-grid {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 0.5rem 1rem;
+    margin-top: 1rem;
+}
+.cipher-grid strong {
+    color: var(--secondary-color);
+    text-align: right;
+}
+.cipher-grid code {
+    background: rgba(0,0,0,0.3);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-family: monospace;
+    word-break: break-all;
+}
+
+/* --- Gevurah Engine View --- */
+.gevurah-engine-view {
+    margin-top: 1rem;
+    font-family: monospace;
+}
+.gevurah-engine-view h3 {
+    color: var(--primary-color);
+    font-family: 'Orbitron', sans-serif;
+    margin-top: 0;
+}
+.gevurah-engine-view .overview {
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+    text-align: center;
+    opacity: 0.9;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+.engine-state-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+}
+.registers-display h4, .memory-display h4, .gevurah-instructions h4 {
+    color: var(--secondary-color);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 0.5rem;
+}
+.register-grid, .memory-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+}
+.register-name, .memory-address {
+    color: var(--secondary-color);
+    opacity: 0.8;
+}
+.register-value, .memory-value {
+    color: var(--text-color);
+    background: rgba(0,0,0,0.3);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+.gevurah-instructions {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+.gevurah-instruction {
+    border-left: 2px solid var(--secondary-color);
+    padding-left: 1rem;
+}
+.instruction-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.instruction-letter {
+    font-family: 'Noto Sans Hebrew', sans-serif;
+    font-size: 1.8rem;
+    color: var(--primary-color);
+    line-height: 1;
+}
+.instruction-code {
+    background: rgba(0,0,0,0.3);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+.instruction-explanation {
+    margin: 0.5rem 0 0 0;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 0.9rem;
+    opacity: 0.8;
+    line-height: 1.6;
+}
+.operand-register {
+    color: #82e0aa; /* A minty green */
+}
+.operand-memory {
+    color: #d2a1ff; /* A soft purple */
+}
+.operand-literal {
+    color: #f7c873; /* A warm yellow */
+}
+.operand-path {
+    color: #73c8f7; /* A sky blue */
+    font-style: italic;
+}
+
+/* --- Whitepaper Initiation View --- */
+.whitepaper-initiation-view {
+    margin-top: 1rem;
+}
+.whitepaper-initiation-view h3 {
+    color: var(--primary-color);
+    font-family: 'Orbitron', sans-serif;
+    margin-top: 0;
+    text-align: center;
+}
+.whitepaper-initiation-view .overview {
+    font-style: italic;
+    text-align: center;
+    opacity: 0.9;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+.whitepaper-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.whitepaper-section {
+    padding-left: 1rem;
+    border-left: 2px solid var(--secondary-color);
+}
+.whitepaper-section h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--secondary-color);
+    font-family: 'Orbitron', sans-serif;
+}
+.whitepaper-section p {
+    margin: 0;
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+/* --- Whitepaper View --- */
+.whitepaper-view {
+    margin-top: 1rem;
+    font-family: 'Cormorant Garamond', serif;
+    line-height: 1.7;
+    position: relative;
+}
+
+.whitepaper-view .share-btn {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--secondary-color);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all 0.3s ease;
+}
+.whitepaper-view .share-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.whitepaper-header {
+    text-align: center;
+    border-bottom: 1px solid var(--primary-color);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+.whitepaper-header h1 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--primary-color);
+    margin: 0;
+    font-size: 1.8rem;
+}
+.whitepaper-header h2 {
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--secondary-color);
+    margin: 0.25rem 0 0 0;
+    font-size: 1rem;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.whitepaper-abstract {
+    margin-bottom: 2rem;
+}
+.whitepaper-abstract h4 {
+    color: var(--secondary-color);
+    font-style: italic;
+    margin: 0 0 0.5rem 0;
+}
+.whitepaper-abstract p {
+    margin: 0;
+    font-style: italic;
+    opacity: 0.9;
+}
+
+.whitepaper-body .wp-section {
+    margin-bottom: 2rem;
+}
+.whitepaper-body .wp-section > h3 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--secondary-color);
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+.whitepaper-body .wp-subsection {
+    margin-bottom: 1rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--secondary-color);
+}
+.whitepaper-body .wp-subsection h4 {
+    margin: 0 0 0.25rem 0;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    font-weight: normal;
+}
+.whitepaper-body .wp-subsection p {
+    margin: 0;
+    opacity: 0.95;
 }

@@ -34,9 +34,10 @@ const App: FC = () => {
         handleSendMessage, handleRetry, setIsModalOpen, setGuidingIntent, handleSynthesizeConnections, dismissToast,
         handleNumberInteract, addMessage, handleUnlockSession, stopMeditation, generateVisualChallenge,
         handleOpenIngestView, handleStartPalmistry, handleStartVoiceAnalysis, stopInstructionalComposition,
-        stopEntrainment,
+        stopEntrainment, handlePlannerCommand,
         startTour, endTour, setTourStep, speakText, startVoiceInput,
         toggleFavoriteComposition,
+        handleDownloadArchive,
     } = useAstrianSystem();
     
     const [input, setInput] = useState('');
@@ -78,19 +79,13 @@ const App: FC = () => {
         return (
             <>
                 <main>
+                   {/* FIX: Removed invalid and unused props from ChatView. */}
                    <ChatView
                        history={sessionHistory}
                        isLoading={isLoading}
                        error={error}
                        onRetry={handleRetry}
-                       guidingIntent={guidingIntent}
-                       onIntentChange={setGuidingIntent}
                        onNumberInteract={handleNumberInteract}
-                       addMessage={addMessage}
-                       aweData={aweData}
-                       setAweData={setAweData}
-                       palmistryDone={palmistryDone}
-                       voiceDone={voiceDone}
                        input={input}
                        onInputChange={setInput}
                        onSend={handleSend}
@@ -140,10 +135,12 @@ const App: FC = () => {
                         onOpenIngest={handleOpenIngestView}
                         onStartPalmistry={handleStartPalmistry}
                         onStartVoiceAnalysis={handleStartVoiceAnalysis}
+                        onGeneratePlanner={handlePlannerCommand}
                         isAweComplete={isAweComplete}
                         isPlannerUnlocked={isPlannerUnlocked}
                         onStartTour={startTour}
                         isFirstVisit={isFirstVisit}
+                        onDownloadArchive={handleDownloadArchive}
                     />
                     <EmergentCTA onTrigger={handleSendMessage} />
                 </>

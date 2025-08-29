@@ -1,5 +1,5 @@
 import { AstrianEngine } from './services';
-import { structuralFrequencyIndex } from './src/dataModels';
+import { structuralFrequencyIndex } from './dataModels';
 
 /**
  * library.ts

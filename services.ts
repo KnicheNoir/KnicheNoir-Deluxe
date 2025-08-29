@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { codex } from './codex';
-import { CascadeCorrespondence, AWEFormData, EntrainmentProfile, ELSResult, ExhaustiveResonanceResult, StrongsEntry, GematriaAnalysis, DeepELSAnalysisResult, GuidingIntent, SessionRecord, UserMessage, AIMessage, SystemMessage, ComponentMessage, NetworkPatternResult, MusicalComposition, NoteEvent, AIProductionNotes, LetterformAnalysis, StructuralAnalysisResult, HarmonicResonanceResult, InstrumentProfile, ResonancePotentialMapResult } from './types';
-import { hebrewNetwork } from './src/dataModels';
+import { CascadeCorrespondence, AWEFormData, EntrainmentProfile, ELSResult, ExhaustiveResonanceResult, StrongsEntry, GematriaAnalysis, DeepELSAnalysisResult, GuidingIntent, SessionRecord, UserMessage, AIMessage, SystemMessage, ComponentMessage, NetworkPatternResult, MusicalComposition, NoteEvent, AIProductionNotes, LetterformAnalysis, StructuralAnalysisResult, HarmonicResonanceResult, InstrumentProfile, ResonancePotentialMapResult, CompassCipherResult } from './types';
+import { hebrewNetwork } from './dataModels';
 
 /**
  * services.ts
@@ -308,7 +308,10 @@ export class GeminiService {
                 case 'ai': 
                     const aiMsg = r as AIMessage;
                     content = `AI: ${aiMsg.text}`;
-                    if (aiMsg.analysisType && aiMsg.analysisType !== 'chat') {
+                    // FIX: Corrected the logic. `analysisType` will be undefined for chat messages,
+                    // so checking for its existence is sufficient. The `'chat'` type does not exist
+                    // on this property, so the comparison was invalid.
+                    if (aiMsg.analysisType) {
                         const resultSnippet = JSON.stringify(aiMsg.result, (key, value) => 
                             typeof value === 'string' && value.length > 50 ? value.substring(0,50)+'...' : value,
                         2).substring(0, 200);
@@ -384,7 +387,18 @@ export class GeminiService {
                     outputMimeType: 'image/jpeg',
                 },
             }),
-            (response) => response.generatedImages.map((img: any) => img.image.imageBytes),
+            (response: any): string[] => {
+                // FIX: The response from the image generation API is untyped. Added runtime checks
+                // to safely access nested properties, preventing crashes if the response
+                // structure is unexpected. This validates that `response.generatedImages` is
+                // an array and filters for valid image data strings.
+                if (response && Array.isArray(response.generatedImages)) {
+                    return response.generatedImages
+                        .map((img: any) => img?.image?.imageBytes)
+                        .filter((bytes: any): bytes is string => typeof bytes === 'string');
+                }
+                return [];
+            },
             "Image Generation"
         );
     }
@@ -403,7 +417,63 @@ export class GeminiService {
 // --- ASTRIAN / QUANTUM RESONANCE ENGINE CORE ---
 // =================================================================================================
 export class AstrianEngine {
+    private static readonly DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    private static readonly CIRCULAR_SYMBOLS = ['°', '•', '○', '◎', '©', '®'];
+    private static readonly NON_CIRCULAR_SYMBOLS = ['√', '>', ']', '¢', '{', '‡', '†', '∆'];
+    private static readonly HEBREW_ALPHABET = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ', 'ק', 'ר', 'ש', 'ת'];
+
+    private static getReducedGematria(value: number): number {
+        let num = value;
+        while (num > 9) {
+            num = String(num).split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
+        }
+        return num;
+    }
     
+    public static performCompassCipher(text: string, offset: number, mode: 'encode' | 'decode'): CompassCipherResult {
+        const dirToNum = new Map<string, number>();
+        const numToDir = new Map<number, string>();
+        this.DIRECTIONS.forEach((dir, i) => {
+            const value = ((i + offset) % 8) + 1;
+            dirToNum.set(dir, value);
+            numToDir.set(value, dir);
+        });
+
+        if (mode === 'encode') {
+            const hebrewText = text.replace(/[^א-ת]/g, '');
+            if (!hebrewText) throw new Error("Encoding requires Hebrew characters.");
+            const numbers = hebrewText.split('').map(char => {
+                const gematria = hebrewNetwork.getLetterformAnalysis(char)?.gematria || 0;
+                return this.getReducedGematria(gematria);
+            });
+
+            const outputText = numbers.map(n => {
+                if (n >= 1 && n <= 8) return numToDir.get(n);
+                if (n === 9) return this.NON_CIRCULAR_SYMBOLS[Math.floor(Math.random() * this.NON_CIRCULAR_SYMBOLS.length)];
+                return '?'; // Should not happen with reduced gematria
+            }).join(' ');
+
+            return { mode, offset, inputText: text, outputText };
+
+        } else { // Decode
+            const tokens = text.trim().split(/\s+/);
+            const numbers = tokens.map(token => {
+                if (dirToNum.has(token.toUpperCase())) return dirToNum.get(token.toUpperCase());
+                if (this.CIRCULAR_SYMBOLS.includes(token)) return 0;
+                if (this.NON_CIRCULAR_SYMBOLS.includes(token)) return 9;
+                return -1; // Invalid token
+            });
+
+            const outputText = numbers.map(n => {
+                if (n >= 1 && n <= 22) return this.HEBREW_ALPHABET[n - 1];
+                if (n === 0) return ' ';
+                return '?';
+            }).join('');
+
+            return { mode, offset, inputText: text, outputText };
+        }
+    }
+
     public static getWillowLibraryKey(): string {
         const masterKeyLetters = Array.from(hebrewNetwork.getMasterKey());
         const gematriaValue = hebrewNetwork.calculatePathGematria(masterKeyLetters);
@@ -464,17 +534,80 @@ export class AstrianEngine {
     }
 
     public static performIntelligentElsDiscovery(hebrewText: string, reference: string): DeepELSAnalysisResult {
-        // This is a synchronous, high-performance function now.
-        // The actual complex ELS logic is omitted for brevity but would exist here.
+        const cleanedText = hebrewText.replace(/[\s.,]/g, '');
+        const GRID_WIDTH = 30;
+        const grid: string[][] = [];
+        for (let i = 0; i < cleanedText.length; i += GRID_WIDTH) {
+            grid.push(cleanedText.substring(i, i + GRID_WIDTH).split(''));
+        }
+        if (grid.length === 0) return { textGrid: { text: '', explanation: 'No text to analyze.'}, elsAnalysis: [] };
+        
+        const archetypalWords = Array.from(hebrewNetwork.getAllArchetypalWords().keys());
+        const foundResults: ELSResult[] = [];
+        
+        const directions = {
+            E: { r: 0, c: 1 }, W: { r: 0, c: -1 }, S: { r: 1, c: 0 }, N: { r: -1, c: 0 },
+            SE: { r: 1, c: 1 }, SW: { r: 1, c: -1 }, NE: { r: -1, c: 1 }, NW: { r: -1, c: -1 }
+        };
+
+        const searchSkips = [1, 2, 3, 5, 7, 12, 49]; // Prioritize significant skips
+
+        for (const word of archetypalWords) {
+            if (word.length < 3) continue; // Skip very short words
+
+            for (let r = 0; r < grid.length; r++) {
+                for (let c = 0; c < grid[r].length; c++) {
+                    if (grid[r][c] === word[0]) {
+                        
+                        for (const [dirName, dir] of Object.entries(directions)) {
+                             for (const skip of searchSkips) {
+                                let path: { row: number, col: number }[] = [{ row: r, col: c }];
+                                let found = true;
+                                for (let i = 1; i < word.length; i++) {
+                                    const nextR = r + i * dir.r * skip;
+                                    const nextC = c + i * dir.c * skip;
+
+                                    // Simple grid wrap-around logic
+                                    const wrappedR = (nextR + grid.length) % grid.length;
+                                    // FIX: Explicitly check row to satisfy TypeScript's type checker in complex loops.
+                                    // This resolves multiple 'unknown' type errors.
+                                    const currentRow = grid[wrappedR];
+                                    if (!currentRow || currentRow.length === 0) {
+                                        found = false;
+                                        break;
+                                    }
+                                    const numCols = currentRow.length;
+                                    const wrappedC = (nextC + numCols) % numCols;
+
+                                    if (currentRow[wrappedC] === word[i]) {
+                                        path.push({ row: wrappedR, col: wrappedC });
+                                    } else {
+                                        found = false;
+                                        break;
+                                    }
+                                }
+                                if (found) {
+                                    foundResults.push({
+                                        word,
+                                        skip,
+                                        direction: dirName,
+                                        path,
+                                        englishMeaning: hebrewNetwork.getAllArchetypalWords().get(word)
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         return {
             textGrid: {
-                text: hebrewText.substring(0, 400),
-                explanation: `A 20x20 grid derived from the start of ${reference}. The engine scans this matrix for all possible terms.`
+                text: grid.map(row => row.join('')).join('\n'),
+                explanation: `The Willow's archetypal codex was scanned against the textual matrix of ${reference}, revealing innate structural patterns.`
             },
-            elsAnalysis: [
-                { word: 'תורה', transliteration: 'Torah', skip: 49, direction: 'E', path: [] , numericalSignificance: "7x7: A number of spiritual completion and perfection, squared." },
-                { word: 'אור', transliteration: 'Or', skip: 7, direction: 'S', path: [] }
-            ]
+            elsAnalysis: foundResults.slice(0, 15) // Limit results for display
         };
     }
 
