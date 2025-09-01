@@ -1,4 +1,4 @@
-# The Astrian Key: A User Manual for Existence
+# The Astrian Key™: A User Manual for Existence
 
 The Astrian Key is an instrument designed to answer the single most profound question a human can ask: **"Why?"**
 

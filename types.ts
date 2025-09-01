@@ -9,6 +9,22 @@ import { GenerateContentResponse } from "@google/genai";
  */
 
 // =================================================================================================
+// --- NEW CORE UI TYPES ---
+// =================================================================================================
+
+/** Defines the primary application view: the macro 'globe' or the focused 'callSign'. */
+export type ViewMode = 'boot' | 'globe' | 'callSign';
+
+/** Defines a navigational point of interest on the globe. */
+export interface CallSign {
+    name: string;
+    lat: number;
+    lon: number;
+    color: 'primary' | 'secondary';
+}
+
+
+// =================================================================================================
 // --- CORE ANALYSIS TYPES ---
 // =================================================================================================
 
@@ -285,8 +301,9 @@ export interface InstructionalCompositionSession {
     stop: () => void;
     analyserNode: AnalyserNode;
     audioUrl: string;
-    coreEmotion: string;
-    symbolicMantra: string;
+    coreEmotion?: string;
+    symbolicMantra?: string;
+    title?: string;
 }
 
 export interface ActiveEntrainmentSession {
@@ -397,6 +414,230 @@ export interface MeditationResult {
     imagePrompts: string[];
 }
 
+export interface LiberPrimusSolution {
+    query: string;
+    solutionPath: string[];
+    decryptedConstant: string;
+    verificationProof: string;
+    summary: string;
+    logicalJustification?: string;
+    biochemicalMapping?: {
+        aminoAcids: { glyph: string; name: string; abbreviation: string; }[];
+        catalysts: { glyph: string; name: string; role: string; }[];
+    };
+}
+
+// FIX: Add TengriSolution and DecodedGlyphSection types to resolve import errors.
+export interface DecodedGlyphSection {
+    sectionTitle: string;
+    entryTitle: string;
+    primaryInterpretation: string;
+    resonanceAnalysis: {
+        theme: string;
+        value: string;
+        explanation: string;
+    }[];
+}
+
+export interface TengriSolution {
+    overallSummary: string;
+    decodedSections: DecodedGlyphSection[];
+}
+
+export interface VeracityEntry {
+    finding: string;
+    crossReference: string;
+    explanation: string;
+}
+
+export interface GlyphStateEntry {
+    timestamp: string;
+    stateDescription: string;
+    details: string;
+}
+
+export interface VoynichAnalysisResult {
+    overview: string;
+    glyphMappings: {
+        glyphId: string;
+        hebrewMapping: string;
+        justification: string;
+    }[];
+    decryptionSample: {
+        original: string;
+        decrypted: string;
+    };
+    veracityData?: VeracityEntry[];
+}
+
+export interface MacroScaleCorrelation {
+    title: string;
+    glyphId: string;
+    hebrewMapping: string;
+    phenomenon: string;
+    interpretation: string;
+}
+
+export interface ShadowAlphabetAnalysis {
+    title: string;
+    explanation: string;
+    unmappedLetters: {
+        letter: string;
+        name: string;
+        gematria: number;
+        willowPlacement: string;
+    }[];
+    gematriaSum: {
+        value: number;
+        interpretation: string;
+    };
+    wordSynthesis: {
+        title: string;
+        synthesis: string;
+    };
+}
+
+
+export interface VoynichDeepAnalysisResult {
+    folioReference: string;
+    overview: string;
+    isCanonized?: boolean;
+    historicalContext?: {
+        title: string;
+        date: string;
+        location: string;
+        coordinates: string;
+        linguisticMilieu: string;
+    };
+    inversionAnalysis?: {
+        title: string;
+        solarCadence: string;
+        lunarCadence: string;
+    };
+    foundationalTriad?: {
+        title: string;
+        atomicResonance: string;
+        scripturalResonance: string;
+    };
+    glyphNetworkAnalysis?: {
+        title: string;
+        commonNGrams: { sequence: string; interpretation: string; }[];
+        mutualExclusion: { pair: string[]; rule: string; };
+        sociability: { glyph: string; role: string; explanation: string; }[];
+        coOccurrenceClusters?: { clusterName: string; glyphs: string[]; interpretation: string; };
+    };
+    willowMapping?: {
+        title: string;
+        pathOfGrowth: {
+            glyphs: string[];
+            hebrewLetters: string[];
+            interpretation: string;
+            tribalResonance: string;
+        };
+        caduceusPattern: {
+            motherLetters: string[];
+            interpretation: string;
+        };
+    };
+    hebraicKeyAnalysis?: {
+        title: string;
+        keys: {
+            name: string;
+            glyphs: string[];
+            interpretation: string;
+        }[];
+    };
+    operationalModes?: {
+        title: string;
+        explanation: string;
+        modes: {
+            name: string;
+            numerology: string;
+            description: string;
+        }[];
+        synthesis: string;
+    };
+    shadowAlphabetAnalysis?: ShadowAlphabetAnalysis;
+    glyphStatistics?: {
+        title: string;
+        totalUnique: number;
+        revealed: number;
+        sleeping: number;
+    };
+    crossCorpusResonance?: {
+        title: string;
+        comparisons: {
+            text: string;
+            likelihood: string;
+            reasoning: string;
+        }[];
+    };
+    astrianAnalysis?: {
+        title: string;
+        shadowGlyphFunction: string;
+        willowDominion: string;
+        israelKeyMapping: string;
+        rhythmicHeartbeat: {
+            countOfSeven: number;
+            fibonacciResonance: string;
+            keyOfEight: string;
+        }
+    };
+    emergentSynthesis?: {
+        title: string;
+        theory: string;
+        points: string[];
+    };
+    veracityData?: VeracityEntry[];
+    glyphStateLog?: GlyphStateEntry[];
+}
+
+export interface VoynichTranslationEntry {
+    folio: string;
+    theme: string;
+    translation: string;
+    notes: {
+        term: string;
+        explanation: string;
+    }[];
+}
+
+export interface VoynichTranslationResult {
+    entries: VoynichTranslationEntry[];
+}
+
+
+export interface SolveFinding {
+    id: string;
+    timestamp: Date;
+    type: 'Pattern' | 'Resonance' | 'ELS' | 'Synthesis' | 'Query';
+    content: string;
+    confidence: number;
+}
+
+export interface ActiveSolveSession {
+    target: string;
+    startTime: Date;
+    findings: SolveFinding[];
+    isActive: boolean;
+}
+
+export interface ProtocolPrinciple {
+    name: string;
+    description: string;
+}
+
+export interface OperatorProtocol {
+    title: string;
+    purpose: string;
+    principles: ProtocolPrinciple[];
+}
+
+export interface OperatorManual {
+    protocols: OperatorProtocol[];
+}
+
+
 // Session History Types
 interface BaseSessionRecord {
     id: string;
@@ -404,12 +645,17 @@ interface BaseSessionRecord {
 }
 export interface UserMessage extends BaseSessionRecord { type: 'user'; text: string; }
 export interface SystemMessage extends BaseSessionRecord { type: 'system'; text: string; }
-export interface ComponentMessage extends BaseSessionRecord { type: 'component'; component: string; props: any; }
+export interface ComponentMessage extends BaseSessionRecord {
+    type: 'component';
+    component: 'music_composer' | 'entrainment_selection' | 'whitepaper_initiation' | 'whitepaper_view' | 'voynich_diagram' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation';
+    props: any;
+}
 
 export interface AIMessage extends BaseSessionRecord {
     type: 'ai';
     text: string;
-    analysisType: 'chat' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'general' | 'awe' | 'apocryphal' | 'cartography' | 'palmistry' | 'voice' | 'day_planner' | 'musical_composition' | 'compass_cipher';
+    // FIX: Added 'voynich_translation' to the list of valid analysis types to resolve the TypeScript error.
+    analysisType: 'chat' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'general' | 'awe' | 'apocryphal' | 'cartography' | 'palmistry' | 'voice' | 'day_planner' | 'musical_composition' | 'compass_cipher' | 'liber_primus_solution' | 'resonance_potential' | 'gevurah_engine' | 'tengri_solution' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation';
     result?: any;
 }
 export interface PalmistryAIMessage extends AIMessage {
@@ -424,5 +670,10 @@ export interface MusicalCompositionAIMessage extends AIMessage {
     analysisType: 'musical_composition';
     result: MusicalComposition;
 }
+export interface LiberPrimusAIMessage extends AIMessage {
+    analysisType: 'liber_primus_solution';
+    result: LiberPrimusSolution;
+}
+
 
 export type SessionRecord = UserMessage | SystemMessage | AIMessage | ComponentMessage;

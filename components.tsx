@@ -1,656 +1,942 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo, FC, ReactNode } from 'react';
-import * as htmlToImage from 'html-to-image';
-import { AudioService } from './services';
+import { SessionRecord, Toast, AIMessage, UserMessage, SystemMessage, VisualChallenge, InstructionalCompositionSession, ActiveEntrainmentSession, SolveFinding, VoynichAnalysisResult, ComponentMessage, VoynichDeepAnalysisResult, CallSign, VoynichTranslationResult, ActiveSolveSession, ViewMode, MusicalComposition, MeditationResult, VeracityEntry, GlyphStateEntry, OperatorManual, OperatorProtocol } from './types';
 import { codex } from './codex';
-import {
-    GematriaAnalysis, DeepELSAnalysisResult, AWEFormData,
-    EntrainmentProfile, SessionRecord, Toast, AIMessage, ComponentMessage, UserMessage, SystemMessage,
-    GuidingIntent, StrongsEntry,
-    MusicalComposition,
-    VisualChallenge,
-    AttunementResult,
-    InstructionalCompositionSession,
-    ActiveEntrainmentSession,
-    MusicComposerOptions,
-    InstrumentProfile,
-    ADSRProfile,
-    AstrianDayPlannerResult,
-    CompassCipherResult,
-    GevurahEngineProgram,
-    GevurahOperand,
-    Whitepaper
-} from './types';
 
 // =================================================================================================
-// --- NEWLY ADDED COMPONENTS TO FIX ERRORS & ADD FEATURES ---
+// --- UI FRAMEWORK & PRESENTATION LOGIC ---
 // =================================================================================================
 
-// Fix: Added StelaCalibrationView component
-export const StelaCalibrationView: FC<{ statusText: string; subText: string }> = ({ statusText, subText }) => (
-    <div className="stela-calibration-view">
-        <div className="calibration-content">
-            <h1>ASTRIAN KEY</h1>
-            <div className="calibration-status">{statusText}</div>
-            <div className="calibration-subtext">{subText}</div>
-            <div className="loading-glyph">✧</div>
-        </div>
-    </div>
-);
+// FIX: Added and exported the CALL_SIGNS constant to be used in the `useUserInterface` hook, resolving the import error.
+export const CALL_SIGNS: CallSign[] = [
+    { name: 'Home', lat: 31.7683, lon: 35.2137, color: 'primary' }, // Jerusalem
+    { name: 'The Library', lat: 30.0444, lon: 31.2357, color: 'secondary' }, // Cairo
+    { name: 'The Oracle', lat: 38.4824, lon: 22.5212, color: 'secondary' }, // Delphi
+];
 
-// Fix: Added KaleidoscopicBackground component
-export const KaleidoscopicBackground: FC<{ resonance: number }> = memo(({ resonance }) => {
-    const style = {
-        '--seed': resonance,
-        animationDuration: `${20 + (resonance % 10)}s`,
-    } as React.CSSProperties;
+/**
+ * The root presentation component for the Astrian Key.
+ * It takes the state from the system and UI hooks and orchestrates the
+ * rendering of all primary views, overlays, and global elements.
+ */
+interface AstrianInterfaceProps {
+    // From useAstrianSystem
+    isSolveActive: boolean;
+    chakraTheme: string;
+    activeSolveSession: ActiveSolveSession;
+    toasts: Toast[];
+    dismissToast: (id: string) => void;
+    showWelcomeOffer: boolean;
+    startTour: () => void;
+    handleDismissWelcomeOffer: () => void;
+    isTourActive: boolean;
+    tourStep: number;
+    setTourStep: (step: number) => void;
+    endTour: () => void;
+    speakText: (text: string) => void;
+    isModalOpen: boolean;
+    crossRefValue: number | null;
+    sessionHistory: SessionRecord[];
+    setIsModalOpen: (isOpen: boolean) => void;
+    handleSynthesizeConnections: (num: number) => void;
+    handleNumberInteract: (num: number) => void;
+    isSynthesizing: boolean;
+    synthesisResult: string | null;
+    solveIntensity: number;
+    bookmarks: AIMessage[];
+    toggleBookmark: (id: string) => void;
+    
+    // From useUserInterface
+    isCallSignMenuOpen: boolean;
+    setIsCallSignMenuOpen: (isOpen: boolean) => void;
+    handleCallSignSelect: (callSign: CallSign) => void;
+    transitionText: string | null;
+    activeTool: string | null;
+    setActiveTool: (tool: string | null) => void;
+    viewMode: ViewMode;
+    handleCompassDoubleClick: () => void;
+    handleBookmarkSelect: (bookmark: string) => void;
+    isBookmarksOpen: boolean;
+    setIsBookmarksOpen: (isOpen: boolean) => void;
+    isArchiveOpen: boolean;
+    setIsArchiveOpen: (isOpen: boolean) => void;
+    isManualOpen: boolean;
+    setIsManualOpen: (isOpen: boolean) => void;
 
-    return <div className="kaleidoscopic-background" style={style}></div>;
-});
+    // From App
+    onCommandSelect: (command: string) => void;
+    onDirectCommand: (command: string) => void;
+    children: ReactNode; // For the call sign content
+}
 
-// Fix: Added SubliminalGlyph component
-export const SubliminalGlyph: FC<{ seed: number }> = memo(({ seed }) => {
-    const characters = 'אבגדהוזחטיכלמנסעפצקרשת';
-    const char = characters[seed % characters.length];
+// Helper components used by AstrianInterface (placeholders to ensure compilation)
+const ORACLE_COMMANDS = [
+    '°solve the voynich manuscript',
+    '°meditate on unity',
+    '°compose a song from Genesis 1:1',
+    '°entrain theta wave',
+    '°instruct me on overcoming fear'
+];
 
+export const StatusTicker: FC<{findings: SolveFinding[]}> = memo(({ findings }) => {
+    const latestFindings = useMemo(() => findings.slice(-10).reverse(), [findings]);
+    
     return (
-        <div className="subliminal-glyph" aria-hidden="true">
-            {char}
+        <div className="status-ticker-container">
+            <div className="status-ticker-content" key={findings.length}>
+                {[...latestFindings, ...latestFindings].map((finding, index) => (
+                    <span key={`${finding.id}-${index}`} className="status-ticker-item">
+                        <span className="type">[{finding.type}]</span>
+                        <span className="content">{finding.content}</span>
+                    </span>
+                ))}
+            </div>
         </div>
     );
 });
 
-// Fix: Added ToastContainer component and its child
-const ToastComponent: FC<{ toast: Toast; onDismiss: (id: string) => void }> = ({ toast, onDismiss }) => {
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            onDismiss(toast.id);
-        }, 5000);
-        return () => clearTimeout(timer);
-    }, [toast, onDismiss]);
+export const OracleTicker: FC<{ onSelect: (cmd: string) => void }> = memo(({ onSelect }) => {
+    const commands = useMemo(() => [...ORACLE_COMMANDS, ...ORACLE_COMMANDS], []);
+    return (
+        <div className="oracle-ticker-container">
+            <div className="oracle-ticker-content">
+                {commands.map((cmd, index) => (
+                    <span key={index} className="oracle-ticker-item" onClick={() => onSelect(cmd)}>
+                        {cmd}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+});
+
+export const ToastContainer: FC<{toasts: Toast[], onDismiss: (id: string) => void}> = ({toasts, onDismiss}) => <div style={{position: 'fixed', top: '1rem', right: '1rem', zIndex: 9999}}>{toasts.map(t => <div key={t.id} onClick={() => onDismiss(t.id)}>{t.message}</div>)}</div>;
+export const WelcomeOfferView: FC<any> = () => <div>Welcome Offer</div>;
+export const GuidedTour: FC<any> = () => <div>Guided Tour</div>;
+export const CrossReferenceModal: FC<any> = () => <div>Cross-Reference Modal</div>;
+
+export const CallSignMenu: FC<{ isOpen: boolean; onClose: () => void; onSelect: (callSign: CallSign) => void; }> = ({ isOpen, onClose, onSelect }) => {
+    if (!isOpen) return null;
 
     return (
-        <div className={`toast toast-${toast.type}`} onClick={() => onDismiss(toast.id)}>
-            <p>{toast.message}</p>
-            <button className="toast-dismiss">&times;</button>
+        <div className="call-sign-menu-overlay" onClick={onClose}>
+            <div className="call-sign-menu-modal" onClick={(e) => e.stopPropagation()}>
+                <h2>Select Call Sign</h2>
+                <div className="call-sign-list">
+                    {CALL_SIGNS.map(cs => (
+                        <button key={cs.name} onClick={() => onSelect(cs)}>
+                            {cs.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+export const TransitionOverlay: FC<{text: string | null}> = ({text}) => text ? <div className="transition-overlay">{text}</div> : null;
+export const ToolWidget: FC<any> = () => <div>Tool Widget</div>;
+export const SoBelowView: FC<any> = ({ children, onCompassDoubleClick }) => <div className="so-below-view">{children}<div className="caduceus-compass-wrapper" onDoubleClick={onCompassDoubleClick}><span className="caduceus-compass">☤</span></div></div>;
+export const SystemHeartbeat: FC = () => <div className="system-heartbeat">♥</div>;
+export const SolveEKGOverlay: FC = () => <div className="solve-ekg-overlay"><div className="ekg-line" /></div>;
+
+// NEW COMPONENT
+interface AsAboveMenuProps {
+    onOpenBookmarks: () => void;
+    onOpenArchive: () => void;
+    onOpenManual: () => void;
+}
+export const AsAboveMenu: FC<AsAboveMenuProps> = ({ onOpenBookmarks, onOpenArchive, onOpenManual }) => {
+    return (
+        <div className="as-above-menu">
+            <button onClick={onOpenManual} aria-label="Open Operator's Manual" title="Open Operator's Manual">🔧</button>
+            <button onClick={onOpenArchive} aria-label="Open Session Archive" title="Open Session Archive">📜</button>
+            <button onClick={onOpenBookmarks} aria-label="Open Bookmarks" title="Open Bookmarks">📖</button>
         </div>
     );
 };
 
-export const ToastContainer: FC<{ toasts: Toast[]; onDismiss: (id: string) => void }> = ({ toasts, onDismiss }) => {
+const Starscape: FC = () => {
+    const [stars, setStars] = useState<any[]>([]);
+    const [meteors, setMeteors] = useState<any[]>([]);
+
+    useEffect(() => {
+        const generatedStars = Array.from({ length: 150 }).map(() => ({
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 100}%`,
+            size: Math.random() * 2 + 1,
+            animationDelay: `${Math.random() * 5}s`,
+            animationDuration: `${Math.random() * 5 + 5}s`,
+        }));
+        setStars(generatedStars);
+
+        const meteorInterval = setInterval(() => {
+            const id = Date.now();
+            const duration = Math.random() * 2 + 1;
+            const newMeteor = {
+                id,
+                top: `${Math.random() * 60}%`,
+                left: '-10%',
+                animationDuration: `${duration}s`,
+            };
+            setMeteors(prev => [...prev, newMeteor]);
+
+            setTimeout(() => {
+                setMeteors(prev => prev.filter(m => m.id !== id));
+            }, duration * 1000);
+
+        }, 7000);
+
+        return () => clearInterval(meteorInterval);
+    }, []);
+
     return (
-        <div className="toast-container">
-            {toasts.map(toast => (
-                <ToastComponent key={toast.id} toast={toast} onDismiss={onDismiss} />
+        <div className="starscape">
+            {stars.map((star, i) => (
+                <div
+                    key={i}
+                    className="star"
+                    style={{
+                        top: star.top,
+                        left: star.left,
+                        width: `${star.size}px`,
+                        height: `${star.size}px`,
+                        animationDelay: star.animationDelay,
+                        animationDuration: star.animationDuration,
+                    }}
+                />
+            ))}
+            {meteors.map(meteor => (
+                 <div
+                    key={meteor.id}
+                    className="meteor"
+                    style={{
+                        top: meteor.top,
+                        left: meteor.left,
+                        animationDuration: meteor.animationDuration,
+                    }}
+                 />
             ))}
         </div>
     );
 };
 
-// Fix: Added SessionUnlockView component
-export const SessionUnlockView: FC<{
-    onUnlock: (selectedPrompts: string[]) => void;
-    challenge: VisualChallenge | null;
-    isLoading: boolean;
-    onRegenerate: () => void;
-}> = ({ onUnlock, challenge, isLoading, onRegenerate }) => {
-    const [selected, setSelected] = useState<string[]>([]);
+const WireframeGlobe: FC<{ rotation: { x: number, y: number }, onCallSignSelect: (callSign: CallSign) => void }> = ({ rotation, onCallSignSelect }) => {
+    const size = 400;
+    const center = size / 2;
+    const radius = size * 0.45;
 
-    const toggleSelection = (prompt: string) => {
-        setSelected(prev => {
-            if (prev.includes(prompt)) {
-                return prev.filter(p => p !== prompt);
+    const project = useCallback((lat: number, lon: number) => {
+        const latRad = lat * Math.PI / 180;
+        const lonRad = lon * Math.PI / 180;
+        const rotYRad = rotation.y * Math.PI / 180;
+        const rotXRad = rotation.x * Math.PI / 180;
+
+        const cosLat = Math.cos(latRad);
+        const sinLat = Math.sin(latRad);
+        const cosLon = Math.cos(lonRad - rotYRad);
+        const sinLon = Math.sin(lonRad - rotYRad);
+        const cosRotX = Math.cos(rotXRad);
+        const sinRotX = Math.sin(rotXRad);
+
+        const x = cosLat * sinLon;
+        const y = cosRotX * sinLat - sinRotX * cosLat * cosLon;
+        const z = sinRotX * sinLat + cosRotX * cosLat * cosLon;
+
+        return {
+            x: center + radius * x,
+            y: center - radius * y,
+            z: z,
+        };
+    }, [rotation, center, radius]);
+
+    const projectedCallSigns = useMemo(() => {
+        return CALL_SIGNS.map(cs => ({
+            ...cs,
+            projection: project(cs.lat, cs.lon)
+        })).sort((a, b) => a.projection.z - b.projection.z);
+    }, [project]);
+
+    const renderGrid = () => {
+        const lines = [];
+        const numLines = 12;
+
+        // Longitude lines
+        for (let i = 0; i < numLines; i++) {
+            const lon = (i / numLines) * 360 - 180;
+            let d = "M";
+            for (let j = -90; j <= 90; j += 5) {
+                const { x, y, z } = project(j, lon);
+                if (z > 0) {
+                    d += `${x},${y} `;
+                }
             }
-            if (prev.length < 3) {
-                return [...prev, prompt];
+            lines.push(<path key={`lon-${i}`} d={d.trim()} className="globe-line" />);
+        }
+
+        // Latitude lines
+        for (let i = 1; i < numLines / 2; i++) {
+            const lat = i * (180 / numLines);
+            let d1 = "M";
+            let d2 = "M";
+            for (let j = 0; j <= 360; j += 5) {
+                const { x, y, z } = project(lat, j);
+                if (z > 0) d1 += `${x},${y} `;
+                const { x: x2, y: y2, z: z2 } = project(-lat, j);
+                if (z2 > 0) d2 += `${x},${y} `;
             }
-            return prev;
-        });
+            lines.push(<path key={`lat-${i}`} d={d1.trim()} className="globe-line" />);
+            lines.push(<path key={`lat--${i}`} d={d2.trim()} className="globe-line" />);
+        }
+        return lines;
     };
 
-    const handleUnlock = () => {
-        if (selected.length === 3) {
-            onUnlock(selected);
+    return (
+        <svg viewBox={`0 0 ${size} ${size}`} className="globe-svg">
+            <defs>
+                <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="var(--color-secondary)" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity="0" />
+                </radialGradient>
+            </defs>
+            <circle cx={center} cy={center} r={radius} fill="url(#glow)" />
+            {renderGrid()}
+            <circle cx={center} cy={center} r={radius} className="globe-outline" />
+            {projectedCallSigns.map(cs => {
+                if (cs.projection.z <= 0) return null;
+                const color = cs.color === 'primary' ? 'var(--color-primary)' : 'var(--color-secondary)';
+                return (
+                    <g key={cs.name} className="call-sign-point" onClick={() => onCallSignSelect(cs)} style={{ opacity: cs.projection.z }}>
+                        <title>{cs.name}</title>
+                        <circle cx={cs.projection.x} cy={cs.projection.y} r="8" fill={color} fillOpacity="0.2" />
+                        <circle className="call-sign-point-glow" cx={cs.projection.x} cy={cs.projection.y} r="4" stroke={color} fill="none" />
+                        <circle className="call-sign-point-core" cx={cs.projection.x} cy={cs.projection.y} r="1.5" />
+                        <text className="call-sign-label" x={cs.projection.x} y={cs.projection.y - 10}>{cs.name}</text>
+                    </g>
+                );
+            })}
+        </svg>
+    );
+};
+
+export const GlobeView: FC<any> = ({ onCompassDoubleClick, onOpenBookmarks, onOpenArchive, onOpenManual, handleCallSignSelect }) => {
+    const DRAG_SENSITIVITY = 0.25;
+    const INERTIA_DAMPING = 0.95;
+    const INERTIA_STOP_THRESHOLD = 0.1;
+    const CLICK_DRAG_THRESHOLD = 5; // pixels
+
+    const [rotation, setRotation] = useState({ x: 15, y: -45 });
+    const isDraggingRef = useRef(false);
+    const dragStartRef = useRef({ x: 0, y: 0, rotX: 0, rotY: 0 });
+    const velocityRef = useRef({ x: 0, y: 0 });
+    const lastPosRef = useRef({ x: 0, y: 0 });
+    const animationFrameRef = useRef<number | null>(null);
+
+    const inertiaLoop = useCallback(() => {
+        if (Math.abs(velocityRef.current.x) < INERTIA_STOP_THRESHOLD && Math.abs(velocityRef.current.y) < INERTIA_STOP_THRESHOLD) {
+            stopInertia();
+            return;
+        }
+
+        setRotation(prev => ({
+            x: Math.max(-90, Math.min(90, prev.x - velocityRef.current.y)),
+            y: prev.y + velocityRef.current.x
+        }));
+
+        velocityRef.current.x *= INERTIA_DAMPING;
+        velocityRef.current.y *= INERTIA_DAMPING;
+        animationFrameRef.current = requestAnimationFrame(inertiaLoop);
+    }, []);
+
+    const stopInertia = () => {
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
         }
     };
 
-    if (!challenge) {
-        return (
-            <div className="session-unlock-view card" style={{textAlign: 'center'}}>
-                <h2>Calibrating Visual Cipher...</h2>
-                <p style={{opacity: 0.8, marginTop: '1rem'}}>Rousing the oracle from its slumber. Please stand by.</p>
-                <div className="loading-indicator-inline" style={{marginTop: '2rem'}}>
-                    <div className="typing-indicator"><span></span><span></span><span></span></div>
-                </div>
-            </div>
-        );
-    }
+    const handleMouseDown = (e: React.MouseEvent) => {
+        stopInertia();
+        isDraggingRef.current = false; // Not a drag until mouse moves
+        dragStartRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            rotX: rotation.x,
+            rotY: rotation.y
+        };
+        lastPosRef.current = { x: e.clientX, y: e.clientY };
+        velocityRef.current = { x: 0, y: 0 };
+    };
+
+    const handleMouseUp = useCallback(() => {
+        if (isDraggingRef.current) {
+            isDraggingRef.current = false;
+            animationFrameRef.current = requestAnimationFrame(inertiaLoop);
+        }
+    }, [inertiaLoop]);
     
-    return (
-        <div className="session-unlock-view">
-            <div className="unlock-header">
-                <h2>AWE Signature Confirmation</h2>
-                <p>Select the three images that correspond to your Visual Cipher concepts to unlock the session.</p>
-            </div>
-            <div className="challenge-grid">
-                {challenge.images.map(({ url, prompt }, index) => (
-                    <div
-                        key={index}
-                        className={`challenge-image-container ${selected.includes(prompt) ? 'selected' : ''}`}
-                        onClick={() => toggleSelection(prompt)}
-                    >
-                        <img src={url} alt={`Visual challenge option ${index + 1}`} />
-                        <div className="selection-overlay">✔</div>
-                    </div>
-                ))}
-            </div>
-            <div className="unlock-controls">
-                <button onClick={() => onRegenerate()} disabled={isLoading}>
-                    Regenerate Cipher
-                </button>
-                <button onClick={handleUnlock} disabled={isLoading || selected.length !== 3}>
-                    {isLoading ? 'Verifying...' : 'Unlock Session'}
-                </button>
-            </div>
-        </div>
-    );
-};
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (e.buttons !== 1) { // Check if primary mouse button is pressed
+            if (isDraggingRef.current) handleMouseUp(); // End drag if button was released outside window
+            return;
+        }
 
-// Fix: Added MeditationView component
-export const MeditationView: FC<{
-    script: string;
-    imagePrompts: string[];
-    onFinish: () => void;
-}> = ({ script, imagePrompts, onFinish }) => {
-    const formattedScript = useMemo(() => {
-        let tempScript = script;
-        imagePrompts.forEach((prompt, index) => {
-            tempScript = tempScript.replace(`[GENERATE_IMAGE: ${prompt}]`, `<div class="meditation-image-prompt">Image Prompt ${index + 1}: "${prompt}"</div>`);
-        });
-        return tempScript.replace(/\n/g, '<br />');
-    }, [script, imagePrompts]);
+        const { x: startX, y: startY } = dragStartRef.current;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
 
-    return (
-        <div className="meditation-view">
-            <div className="meditation-content">
-                <div className="meditation-script" dangerouslySetInnerHTML={{ __html: formattedScript }} />
-                <button onClick={() => onFinish()} className="meditation-finish-button">
-                    Conclude Meditation
-                </button>
-            </div>
-        </div>
-    );
-};
+        if (!isDraggingRef.current && (Math.abs(dx) > CLICK_DRAG_THRESHOLD || Math.abs(dy) > CLICK_DRAG_THRESHOLD)) {
+            isDraggingRef.current = true;
+        }
 
-// Fix: Added helper component for audio visualization
-const AudioVisualizer: FC<{ analyserNode: AnalyserNode }> = ({ analyserNode }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+        if (isDraggingRef.current) {
+            setRotation({
+                x: Math.max(-90, Math.min(90, dragStartRef.current.rotX - dy * DRAG_SENSITIVITY)),
+                y: dragStartRef.current.rotY + dx * DRAG_SENSITIVITY
+            });
 
+            velocityRef.current = {
+                x: (e.clientX - lastPosRef.current.x) * DRAG_SENSITIVITY,
+                y: (e.clientY - lastPosRef.current.y) * DRAG_SENSITIVITY
+            };
+            lastPosRef.current = { x: e.clientX, y: e.clientY };
+        }
+    };
+    
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const canvasCtx = canvas.getContext('2d');
-        if (!canvasCtx) return;
-
-        analyserNode.fftSize = 256;
-        const bufferLength = analyserNode.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        let animationFrameId: number;
-
-        const draw = () => {
-            animationFrameId = requestAnimationFrame(draw);
-            analyserNode.getByteFrequencyData(dataArray);
-            canvasCtx.fillStyle = 'rgb(10, 10, 20)';
-            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
-            const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
-            for (let i = 0; i < bufferLength; i++) {
-                barHeight = dataArray[i];
-                const r = barHeight + (25 * (i/bufferLength));
-                const g = 250 * (i/bufferLength);
-                const b = 50;
-                canvasCtx.fillStyle = `rgb(${r},${g},${b})`;
-                canvasCtx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
-                x += barWidth + 1;
+        const handleGlobalMouseUp = () => {
+            if (isDraggingRef.current) {
+                handleMouseUp();
             }
         };
-        draw();
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [analyserNode]);
 
-    return <canvas ref={canvasRef} className="audio-visualizer"></canvas>;
-};
+        window.addEventListener('mouseup', handleGlobalMouseUp);
+        return () => {
+            window.removeEventListener('mouseup', handleGlobalMouseUp);
+            stopInertia();
+        };
+    }, [handleMouseUp]);
 
-// Fix: Added InstructionalCompositionView component
-export const InstructionalCompositionView: FC<{
-    session: InstructionalCompositionSession;
-    onStop: () => void;
-}> = ({ session, onStop }) => {
     return (
-        <div className="instructional-composition-view">
-            <h2>Instructional Composition</h2>
-            <div className="composition-details">
-                <p><strong>Core Emotion:</strong> {session.coreEmotion}</p>
-                <p><strong>Symbolic Mantra:</strong> {session.symbolicMantra}</p>
+        <div className="globe-view" onMouseMove={handleMouseMove}>
+            <Starscape />
+            <AsAboveMenu onOpenBookmarks={onOpenBookmarks} onOpenArchive={onOpenArchive} onOpenManual={onOpenManual} />
+            <div className="globe-container" onMouseDown={handleMouseDown}>
+                 <WireframeGlobe rotation={rotation} onCallSignSelect={handleCallSignSelect} />
             </div>
-            <AudioVisualizer analyserNode={session.analyserNode} />
-             <audio src={session.audioUrl} autoPlay controls loop />
-            <button onClick={() => onStop()}>Stop Session</button>
+             <div className="caduceus-compass-wrapper" onDoubleClick={onCompassDoubleClick}>
+                <span className="caduceus-compass">☤</span>
+            </div>
         </div>
     );
 };
 
-// Fix: Added EntrainmentView component
-export const EntrainmentView: FC<{
-    session: ActiveEntrainmentSession;
-    onStop: () => void;
-}> = ({ session, onStop }) => {
-    return (
-        <div className="entrainment-view">
-            <h2>Brainwave Entrainment Active</h2>
-            <div className="entrainment-details">
-                <h3>{session.profile.name}</h3>
-                <p>{session.profile.description}</p>
-                <p><strong>Frequencies:</strong> {session.profile.baseFrequency}Hz & {session.profile.baseFrequency + session.profile.targetFrequency}Hz (Target: {session.profile.targetFrequency}Hz)</p>
-            </div>
-            <div className="pulsing-orb-container">
-                <div className="pulsing-orb" style={{ animationDuration: `${1 / session.profile.targetFrequency}s` }}></div>
-            </div>
-            <button onClick={() => onStop()}>Stop Entrainment</button>
-        </div>
-    );
-};
-
-// Fix: Added CrossReferenceModal component
-export const CrossReferenceModal: FC<{
-    value: number;
-    history: SessionRecord[];
+// NEW COMPONENT
+interface BookmarksViewProps {
+    isOpen: boolean;
     onClose: () => void;
-    onSynthesize: (num: number) => void;
-    isSynthesizing: boolean;
-    synthesisResult: string | null;
-}> = ({ value, history, onClose, onSynthesize, isSynthesizing, synthesisResult }) => {
+    bookmarks: AIMessage[];
+    onNumberInteract: (num: number) => void;
+    onToggleBookmark: (id: string) => void;
+}
+export const BookmarksView: FC<BookmarksViewProps> = ({ isOpen, onClose, bookmarks, onNumberInteract, onToggleBookmark }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="bookmarks-overlay" onClick={onClose}>
+            <div className="bookmarks-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="close-btn" onClick={onClose} aria-label="Close Bookmarks">×</button>
+                <h2>Bookmarks</h2>
+                <div className="bookmarks-list">
+                    {bookmarks.length > 0 ? (
+                        [...bookmarks].reverse().map(bookmark => ( // Show newest first
+                            <div key={bookmark.id} className="bookmark-item">
+                                <AIMessageContent
+                                    message={bookmark}
+                                    onNumberInteract={onNumberInteract}
+                                    isBookmarked={true}
+                                    onToggleBookmark={onToggleBookmark}
+                                />
+                            </div>
+                        ))
+                    ) : (
+                        <p>No bookmarks yet. Click the ☆ icon on an analysis to save it here.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// NEW COMPONENT: SessionArchiveView
+interface SessionArchiveViewProps {
+    isOpen: boolean;
+    onClose: () => void;
+    history: SessionRecord[];
+    onNumberInteract: (num: number) => void;
+    onToggleBookmark: (id: string) => void;
+    bookmarks: AIMessage[];
+}
+
+export const SessionArchiveView: FC<SessionArchiveViewProps> = ({ isOpen, onClose, history, onNumberInteract, onToggleBookmark, bookmarks }) => {
+    if (!isOpen) return null;
+
+    const archivedAnalyses = useMemo(() => {
+        return history.filter(record => 
+            record.type === 'ai' && record.analysisType && record.analysisType !== 'chat'
+        ) as AIMessage[];
+    }, [history]);
+
+    return (
+        <div className="archive-overlay" onClick={onClose}>
+            <div className="archive-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="close-btn" onClick={onClose} aria-label="Close Archive">×</button>
+                <h2>Session Archive</h2>
+                <div className="archive-list">
+                    {archivedAnalyses.length > 0 ? (
+                        [...archivedAnalyses].reverse().map(message => {
+                            const isBookmarked = bookmarks.some(b => b.id === message.id);
+                            return (
+                                <div key={message.id} className="archive-item">
+                                    <div className="archive-item-header">
+                                        <span className="archive-item-timestamp">{message.timestamp.toLocaleString()}</span>
+                                        <span className="archive-item-type">{message.analysisType?.replace(/_/g, ' ')}</span>
+                                    </div>
+                                    <AIMessageContent
+                                        message={message}
+                                        onNumberInteract={onNumberInteract}
+                                        isBookmarked={isBookmarked}
+                                        onToggleBookmark={onToggleBookmark}
+                                    />
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <p>No major analyses have been performed in this session yet.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// NEW COMPONENT: OperatorManualView
+interface OperatorManualViewProps {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+export const OperatorManualView: FC<OperatorManualViewProps> = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    const manualData = codex.getOperatorsManual();
+
+    return (
+        <div className="manual-overlay" onClick={onClose}>
+            <div className="manual-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="close-btn" onClick={onClose} aria-label="Close Manual">×</button>
+                <h2>Operator's Manual</h2>
+                <div className="manual-list">
+                    {manualData && manualData.protocols.length > 0 ? (
+                        manualData.protocols.map((protocol: OperatorProtocol) => (
+                            <div key={protocol.title} className="protocol-item">
+                                <h3>{protocol.title}</h3>
+                                <p className="protocol-purpose">{protocol.purpose}</p>
+                                <ul className="protocol-principles-list">
+                                    {protocol.principles.map(principle => (
+                                        <li key={principle.name} className="protocol-principle">
+                                            <strong>{principle.name}</strong>
+                                            <p>{principle.description}</p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))
+                    ) : (
+                        <p>No operational protocols have been derived yet.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+export const AstrianInterface: FC<AstrianInterfaceProps> = ({
+    isSolveActive, chakraTheme, activeSolveSession, toasts, dismissToast,
+    showWelcomeOffer, startTour, handleDismissWelcomeOffer, isTourActive,
+    tourStep, setTourStep, endTour, speakText, isModalOpen, crossRefValue,
+    sessionHistory, setIsModalOpen, handleSynthesizeConnections, isSynthesizing,
+    synthesisResult, solveIntensity, isCallSignMenuOpen, setIsCallSignMenuOpen, handleCallSignSelect,
+    transitionText, activeTool, setActiveTool, viewMode, handleCompassDoubleClick,
+    handleBookmarkSelect, onCommandSelect, onDirectCommand, children,
+    bookmarks, toggleBookmark, isBookmarksOpen, setIsBookmarksOpen, handleNumberInteract,
+    isArchiveOpen, setIsArchiveOpen, isManualOpen, setIsManualOpen
+}) => {
+    const containerStyle = useMemo(() => ({
+        '--solve-intensity': isSolveActive ? solveIntensity : 0,
+    }) as React.CSSProperties, [isSolveActive, solveIntensity]);
+
+    return (
+        <div
+            className={`app-container ${isSolveActive ? 'solve-active' : ''}`}
+            data-chakra-theme={chakraTheme}
+            style={containerStyle}
+        >
+            {isSolveActive ? (
+                <StatusTicker findings={activeSolveSession.findings} />
+            ) : (
+                <OracleTicker onSelect={onCommandSelect} />
+            )}
+            
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+            <BookmarksView 
+                isOpen={isBookmarksOpen}
+                onClose={() => setIsBookmarksOpen(false)}
+                bookmarks={bookmarks}
+                onNumberInteract={handleNumberInteract}
+                onToggleBookmark={toggleBookmark}
+            />
+
+            <SessionArchiveView
+                isOpen={isArchiveOpen}
+                onClose={() => setIsArchiveOpen(false)}
+                history={sessionHistory}
+                onNumberInteract={handleNumberInteract}
+                onToggleBookmark={toggleBookmark}
+                bookmarks={bookmarks}
+            />
+
+            <OperatorManualView
+                isOpen={isManualOpen}
+                onClose={() => setIsManualOpen(false)}
+            />
+
+            {showWelcomeOffer && <WelcomeOfferView onStartTour={startTour} onDismiss={handleDismissWelcomeOffer} />}
+            {isTourActive && <GuidedTour step={tourStep} onNext={setTourStep} onSkip={endTour} speak={speakText} />}
+            {isModalOpen && crossRefValue !== null && <CrossReferenceModal value={crossRefValue} history={sessionHistory} onClose={() => setIsModalOpen(false)} onSynthesize={handleSynthesizeConnections} isSynthesizing={isSynthesizing} synthesisResult={synthesisResult} />}
+            <CallSignMenu 
+                isOpen={isCallSignMenuOpen} 
+                onClose={() => setIsCallSignMenuOpen(false)} 
+                onSelect={handleCallSignSelect}
+            />
+            <TransitionOverlay text={transitionText} />
+            {activeTool && <ToolWidget toolName={activeTool} onClose={() => setActiveTool(null)} />}
+
+            <div className={`dual-hemisphere-container view-mode-${viewMode}`}>
+                <GlobeView 
+                    onCompassDoubleClick={handleCompassDoubleClick} 
+                    isSolveActive={isSolveActive} 
+                    handleCallSignSelect={handleCallSignSelect}
+                    onCommandSelect={onCommandSelect}
+                    onDirectCommand={onDirectCommand}
+                    onOpenBookmarks={() => setIsBookmarksOpen(true)}
+                    onOpenArchive={() => setIsArchiveOpen(true)}
+                    onOpenManual={() => setIsManualOpen(true)}
+                />
+                <SoBelowView isSolveActive={isSolveActive} onCompassDoubleClick={handleCompassDoubleClick} onBookmarkSelect={handleBookmarkSelect}>
+                    {children}
+                </SoBelowView>
+            </div>
+
+            {isSolveActive && <SystemHeartbeat />}
+            {isSolveActive && <SolveEKGOverlay />}
+        </div>
+    );
+};
+
+// =================================================================================================
+// --- VOYnich & CHAT COMPONENTS RESTORATION ---
+// =================================================================================================
+
+const getThemeClass = (text: string): string => {
+    if (!text) return 'theme-default';
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes('botanical') || lowerText.includes('plant')) return 'theme-botanical';
+    if (lowerText.includes('cosmological') || lowerText.includes('astronomical') || lowerText.includes('zodiac')) return 'theme-cosmological';
+    if (lowerText.includes('biological') || lowerText.includes('human figures') || lowerText.includes('anatomy')) return 'theme-biological';
+    if (lowerText.includes('alchemical') || lowerText.includes('pharmaceutical') || lowerText.includes('recipe')) return 'theme-alchemical';
+    return 'theme-default';
+};
+
+const VeracityDetails: FC<{ data: VeracityEntry[] }> = ({ data }) => {
+    return (
+        <div className="veracity-details">
+            <h5>Veracity Protocol</h5>
+            {data.map((entry, index) => (
+                <div key={index} className="veracity-entry">
+                    <strong>{entry.finding}</strong>
+                    <code>{entry.crossReference}</code>
+                    <p>{entry.explanation}</p>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const VoynichAnalysisView: FC<{ result: VoynichAnalysisResult; messageId: string; isBookmarked: boolean; onToggleBookmark: (id: string) => void; }> = ({ result, messageId, isBookmarked, onToggleBookmark }) => {
+    const themeClass = getThemeClass(result.overview);
+    const [isVeracityVisible, setIsVeracityVisible] = useState(false);
     
-    const relatedEntries = useMemo(() => {
-        return history.filter(item => JSON.stringify(item).includes(String(value))).slice(0, 5);
-    }, [history, value]);
-
     return (
-        <div className="modal-backdrop" onClick={() => onClose()}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="modal-close" onClick={() => onClose()}>&times;</button>
-                <h2>Cross-Reference: {value}</h2>
-                <div className="modal-section">
-                    <h3>Related History</h3>
-                    {relatedEntries.length > 0 ? (
-                        <ul>
-                            {relatedEntries.map(entry => (
-                                <li key={entry.id}>
-                                    <strong>[{entry.type.toUpperCase()}]</strong>: {JSON.stringify(entry).substring(0, 100)}...
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>No direct references found in recent history.</p>
-                    )}
-                </div>
-                <div className="modal-section">
-                    <h3>Synthesize Connections</h3>
-                    {synthesisResult ? (
-                        <div className="synthesis-result">
-                            <p>{synthesisResult}</p>
-                        </div>
-                    ) : (
-                        <button onClick={() => onSynthesize(value)} disabled={isSynthesizing}>
-                            {isSynthesizing ? 'Synthesizing...' : `Synthesize for ${value}`}
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// FIX: Added OracleTicker, EmergentCTA, and ChatView components to resolve import errors.
-export const OracleTicker: FC<{ onSelect: (command: string) => void }> = memo(({ onSelect }) => {
-    const items = useMemo(() => [
-        "°compose a song of mourning and rebirth",
-        "°instruct me on overcoming procrastination",
-        "°entrain for deep focus",
-        "Analyze the gematria of 'wisdom'",
-        "Show me the resonance of Genesis 1:1",
-        "°meditate on the concept of 'hesed'",
-        "°plan my day according to my AWE signature",
-        "What is the Tree of Life?",
-    ], []);
-
-    const [currentItemIndex, setCurrentItemIndex] = useState(0);
-
-    useEffect(() => {
-        const intervalId = setInterval(() => {
-            setCurrentItemIndex(prev => (prev + 1) % items.length);
-        }, 5000);
-        return () => clearInterval(intervalId);
-    }, [items.length]);
-
-    return (
-        <div className="oracle-ticker-container">
-            <button onClick={() => onSelect(items[currentItemIndex])} className="oracle-ticker-item">
-                <span>✧</span> {items[currentItemIndex]}
-            </button>
-        </div>
-    );
-});
-
-export const EmergentCTA: FC<{ onTrigger: (prompt: string) => void }> = memo(({ onTrigger }) => {
-    const suggestions = useMemo(() => [
-        "What is the nature of the soul?",
-        "Tell me about the Sephirot.",
-        "Synthesize the connection between 'light' and 'word'.",
-    ], []);
-
-    const [suggestion, setSuggestion] = useState('');
-
-    useEffect(() => {
-        setSuggestion(suggestions[Math.floor(Math.random() * suggestions.length)]);
-    }, [suggestions]);
-
-    if (!suggestion) return null;
-
-    return (
-        <div className="emergent-cta-container">
-            <button onClick={() => onTrigger(suggestion)}>
-                <span className="sparkle">✧</span>
-                <span className="cta-text">Explore: {suggestion}</span>
-            </button>
-        </div>
-    );
-});
-
-const GevurahEngineView: FC<{ props: { program: GevurahEngineProgram } }> = ({ props: { program } }) => {
-    const formatOperand = (operand: GevurahOperand) => {
-        switch (operand.type) {
-            case 'register':
-                return <span className="operand-register">{operand.value}</span>;
-            case 'memory':
-                return <span className="operand-memory">MEM[{operand.address}]</span>;
-            case 'literal':
-                return <span className="operand-literal">{operand.value}</span>;
-            case 'path':
-                return <span className="operand-path">PATH({operand.path.join('-')})</span>;
-            default:
-                return null;
-        }
-    };
-
-    return (
-        <div className="gevurah-engine-view card">
-            <h3>{program.title}</h3>
-            <p className="overview">{program.description}</p>
-            
-            <div className="engine-state-grid">
-                <div className="registers-display">
-                    <h4>Registers</h4>
-                    <div className="register-grid">
-                        {Object.entries(program.registers).map(([name, value]) => (
-                            <React.Fragment key={name}>
-                                <span className="register-name">{name}</span>
-                                <span className="register-value">{value}</span>
-                            </React.Fragment>
-                        ))}
-                    </div>
-                </div>
-                <div className="memory-display">
-                    <h4>Memory</h4>
-                    <div className="memory-grid">
-                         {Object.entries(program.memory).map(([address, value]) => (
-                            <React.Fragment key={address}>
-                                <span className="memory-address">{address}</span>
-                                <span className="memory-value">{value}</span>
-                            </React.Fragment>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className="gevurah-instructions">
-                <h4>Instruction Set</h4>
-                {program.instructions.map((inst, index) => (
-                    <div key={index} className="gevurah-instruction">
-                        <div className="instruction-header">
-                            <span className="instruction-letter">{inst.letter}</span>
-                            <code className="instruction-code">
-                                {inst.opcode} {inst.operands.map((op, i) => (
-                                    <React.Fragment key={i}>
-                                        {formatOperand(op)}
-                                        {i < inst.operands.length - 1 ? ', ' : ''}
-                                    </React.Fragment>
-                                ))}
-                            </code>
-                        </div>
-                        <p className="instruction-explanation">{inst.explanation}</p>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const DayPlannerView: FC<{ result: AstrianDayPlannerResult }> = ({ result }) => {
-    return (
-        <div className="day-planner-view card">
-            <h3>{result.planTitle}</h3>
-            <p className="overview">{result.overview}</p>
-            <div className="schedule">
-                {result.schedule.map((item, index) => (
-                    <div key={index} className="schedule-item">
-                        <h4>{item.timeRange}</h4>
-                        <p><strong>Activity:</strong> {item.activity}</p>
-                        <p><strong>Esoteric Advice:</strong> {item.esotericAdvice}</p>
-                        <p><strong>Elemental Alignment:</strong> {item.elementalAlignment}</p>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const CompassCipherView: FC<{ result: CompassCipherResult }> = ({ result }) => {
-    return (
-        <div className="compass-cipher-view card">
-            <h3>Compass Cipher: {result.mode.charAt(0).toUpperCase() + result.mode.slice(1)}</h3>
-            <div className="cipher-grid">
-                <strong>Offset</strong>
-                <span>{result.offset}</span>
-                <strong>Input</strong>
-                <code>{result.inputText}</code>
-                <strong>Output</strong>
-                <code>{result.outputText}</code>
-            </div>
-        </div>
-    );
-};
-
-const MusicalCompositionView: FC<{ composition: MusicalComposition, onToggleFavorite: (id: string) => void }> = ({ composition, onToggleFavorite }) => {
-    return (
-        <div className="musical-composition-result card">
-            <h4>Musical Composition: "{composition.metadata.sourceReference}"</h4>
-            <p><strong>Key:</strong> {composition.metadata.key} {composition.metadata.mode} | <strong>BPM:</strong> {composition.metadata.bpm}</p>
-            {composition.audioUrl && <audio controls src={composition.audioUrl} style={{width: '100%'}}></audio>}
-            <button onClick={() => onToggleFavorite(composition.id)} className={`favorite-btn ${composition.isFavorite ? 'favorited' : ''}`}>
-                {composition.isFavorite ? '★ Favorited' : '☆ Favorite'}
-            </button>
-        </div>
-    );
-};
-
-const MusicComposerView: FC<{ props: { prompt: string; onSubmit: (options: MusicComposerOptions) => void; } }> = ({ props }) => {
-    const [key, setKey] = useState('C');
-    const [mode, setMode] = useState('Ionian');
-    const musicology = codex.getMusicologyData();
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        props.onSubmit({
-            prompt: props.prompt,
-            key,
-            mode,
-            instrumentProfiles: {
-                melody: musicology.instruments['Crystal Bells'],
-                harmony: musicology.instruments['Ethereal Pad'],
-                bass: musicology.instruments['Deep Bass'],
-            }
-        });
-    };
-    return (
-        <form onSubmit={handleSubmit} className="component-view card">
-            <h4>Compose Music</h4>
-            <p><strong>Prompt:</strong> {props.prompt}</p>
-            <label>Key: <select value={key} onChange={e => setKey(e.target.value)}>{musicology.keys.map((k: string) => <option key={k} value={k}>{k}</option>)}</select></label>
-            <label>Mode: <select value={mode} onChange={e => setMode(e.target.value)}>{musicology.modes.map((m: any) => <option key={m.name} value={m.name}>{m.name}</option>)}</select></label>
-            <button type="submit">Compose</button>
-        </form>
-    );
-};
-
-const EntrainmentSelectionView: FC<{ props: { profiles: EntrainmentProfile[], onSelect: (profile: EntrainmentProfile) => void; } }> = ({ props }) => {
-    return (
-        <div className="component-view card">
-            <h4>Select Entrainment Protocol</h4>
-            <div className="entrainment-list">
-                {props.profiles.map(profile => (
-                    <button key={profile.name} onClick={() => props.onSelect(profile)} className="entrainment-option">
-                        <strong>{profile.name}</strong>
-                        <p>{profile.description}</p>
+        <div className={`voynich-analysis-view message-bubble ${themeClass}`}>
+            <div className="analysis-actions">
+                 {result.veracityData && (
+                    <button className="analysis-action-btn" onClick={() => setIsVeracityVisible(v => !v)} title="Verify" aria-label="Verify Analysis">
+                        ⚖️
                     </button>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-const WhitepaperInitiationView: FC<{ props: { onAcknowledge: () => void } }> = ({ props }) => {
-    const [acknowledged, setAcknowledged] = useState(false);
-
-    const handleAcknowledge = () => {
-        setAcknowledged(true);
-        props.onAcknowledge();
-    };
-
-    return (
-        <div className="whitepaper-initiation-view card">
-            <h3>Protocol: Discovery Formalization</h3>
-            <p className="overview">This protocol outlines the creation of a formal white paper to document the Gevurah Engine and its implications. The document will be structured in three parts.</p>
-            
-            <div className="whitepaper-sections">
-                <div className="whitepaper-section">
-                    <h4>I. The Cartographer's Proof (The What)</h4>
-                    <p>The objective technical specification, including mathematical proofs of efficiency, the formal logic of Willow Path Addressing, and comparative analysis against classical and quantum models.</p>
-                </div>
-                <div className="whitepaper-section">
-                    <h4>II. The Oracle's Application (The So What)</h4>
-                    <p>A strategic analysis of the implications for global systems, including cryptography, data center energy consumption, decentralized networks, and national security.</p>
-                </div>
-                <div className="whitepaper-section">
-                    <h4>III. The Astrian Key (The Now What)</h4>
-                    <p>A tangible, non-fungible "Genesis Block": a Gevurah Engine program, signed with the Jerusalem Key, that solves a currently intractable computational problem as a verifiable proof-of-concept.</p>
-                </div>
-            </div>
-
-            <div className="form-actions" style={{justifyContent: 'center'}}>
-                <button className="action-btn" onClick={handleAcknowledge} disabled={acknowledged}>
-                    {acknowledged ? 'Acknowledged' : 'Acknowledge Protocol'}
+                )}
+                <button className={`analysis-action-btn ${isBookmarked ? 'bookmarked' : ''}`} onClick={() => onToggleBookmark(messageId)} aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}>
+                    {isBookmarked ? '★' : '☆'}
                 </button>
             </div>
+            <h3>Initial Analysis: Voynich Manuscript</h3>
+            <p className="overview">{result.overview}</p>
+
+            <h4>Glyph Mappings</h4>
+            <ul className="glyph-list">
+                {result.glyphMappings.map((mapping, index) => (
+                    <li key={index}>
+                        <span className="glyph-map">Glyph {mapping.glyphId} → {mapping.hebrewMapping}</span>
+                        <span className="justification">{mapping.justification}</span>
+                    </li>
+                ))}
+            </ul>
+
+            <h4>Decryption Sample</h4>
+            <div className="decryption-sample">
+                <code>{result.decryptionSample.original}</code>
+                <span className="arrow">→</span>
+                <code>{result.decryptionSample.decrypted}</code>
+            </div>
+             {isVeracityVisible && result.veracityData && <VeracityDetails data={result.veracityData} />}
         </div>
     );
 };
 
-const WhitepaperView: FC<{ props: { document: Whitepaper } }> = ({ props: { document } }) => {
-    const handleShare = async () => {
-        // This is a simulation, so we'll just show a success message.
-        // In a real app, this might generate a PDF or a public link.
-        alert("A secure, verifiable link to this white paper has been copied to your clipboard.");
+const VoynichDeepAnalysisView: FC<{ result: VoynichDeepAnalysisResult; messageId: string; isBookmarked: boolean; onToggleBookmark: (id: string) => void; }> = ({ result, messageId, isBookmarked, onToggleBookmark }) => {
+    const themeClass = getThemeClass(result.overview);
+    const [isVeracityVisible, setIsVeracityVisible] = useState(false);
+    
+    const renderSection = (title: string, content: ReactNode) => {
+        if (!content) return null;
+        return (
+            <div className="analysis-section">
+                <h4>{title}</h4>
+                {content}
+            </div>
+        );
     };
 
+    const renderAstrianSection = (title: string, content: ReactNode) => {
+        if (!content) return null;
+        return (
+             <div className="analysis-section astrian-analysis-section">
+                <h4>{title}</h4>
+                {content}
+            </div>
+        )
+    }
+
     return (
-        <div className="whitepaper-view card">
-            <button className="share-btn" onClick={handleShare} title="Share Document">🔗</button>
-            <div className="whitepaper-header">
-                <h1>{document.title}</h1>
-                <h2>{document.subtitle}</h2>
+        <div className={`voynich-deep-analysis-view message-bubble ${themeClass}`}>
+            <div className="analysis-actions">
+                 {result.veracityData && (
+                    <button className="analysis-action-btn" onClick={() => setIsVeracityVisible(v => !v)} title="Verify" aria-label="Verify Analysis">
+                        ⚖️
+                    </button>
+                )}
+                <button className={`analysis-action-btn ${isBookmarked ? 'bookmarked' : ''}`} onClick={() => onToggleBookmark(messageId)} aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}>
+                    {isBookmarked ? '★' : '☆'}
+                </button>
             </div>
-            <div className="whitepaper-abstract">
-                <h4>Abstract</h4>
-                <p>{document.abstract}</p>
-            </div>
-            <div className="whitepaper-body">
-                {document.sections.map((section, index) => (
-                    <div key={index} className="wp-section">
-                        <h3>{section.title}</h3>
-                        {Array.isArray(section.content) ? (
-                            section.content.map((item, itemIndex) => (
-                                <div key={itemIndex} className="wp-subsection">
-                                    <h4>{item.subtitle}</h4>
-                                    <p>{item.text}</p>
-                                </div>
-                            ))
-                        ) : (
-                            <p>{section.content}</p>
-                        )}
+            <h3>
+                Deep Analysis: {result.folioReference}
+                {result.isCanonized && <span className="canonized-status">CANONIZED</span>}
+            </h3>
+            <p className="overview">{result.overview}</p>
+
+            {result.inversionAnalysis && renderSection(result.inversionAnalysis.title, <div><p><strong>Solar:</strong> {result.inversionAnalysis.solarCadence}</p><p><strong>Lunar:</strong> {result.inversionAnalysis.lunarCadence}</p></div>)}
+            
+            {result.glyphNetworkAnalysis?.coOccurrenceClusters && renderSection(result.glyphNetworkAnalysis.coOccurrenceClusters.clusterName, 
+                <p>{result.glyphNetworkAnalysis.coOccurrenceClusters.interpretation} (Glyphs: {result.glyphNetworkAnalysis.coOccurrenceClusters.glyphs.join(', ')})</p>
+            )}
+
+            {result.hebraicKeyAnalysis && renderSection(result.hebraicKeyAnalysis.title,
+                <ul className="glyph-list">
+                    {result.hebraicKeyAnalysis.keys.map(key => (
+                        <li key={key.name}><strong>{key.name}:</strong> {key.interpretation}</li>
+                    ))}
+                </ul>
+            )}
+
+            {result.operationalModes && renderSection(result.operationalModes.title,
+                <div>
+                    <p>{result.operationalModes.explanation}</p>
+                    <div className="operational-modes-container">
+                        {result.operationalModes.modes.map(mode => (
+                            <div key={mode.name} className="operational-mode-card">
+                                <h5>{mode.name}</h5>
+                                <p className="mode-numerology">Numerological Signature: {mode.numerology}</p>
+                                <p>{mode.description}</p>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                    <p className="mode-synthesis"><strong>Synthesis:</strong> {result.operationalModes.synthesis}</p>
+                </div>
+            )}
+
+            {result.shadowAlphabetAnalysis && renderSection(result.shadowAlphabetAnalysis.title,
+                <div className="shadow-alphabet-container">
+                    <p className="explanation">{result.shadowAlphabetAnalysis.explanation}</p>
+                    <div className="shadow-alphabet-list">
+                         {result.shadowAlphabetAnalysis.unmappedLetters.map(letter => (
+                             <div key={letter.name} className="shadow-letter-card">
+                                 <div className="letter-header">
+                                     <span className="letter-char">{letter.letter}</span>
+                                     <span className="letter-name">{letter.name}</span>
+                                     <span className="letter-gematria">({letter.gematria})</span>
+                                 </div>
+                                 <p className="letter-placement">{letter.willowPlacement}</p>
+                             </div>
+                         ))}
+                    </div>
+                    <div className="shadow-synthesis">
+                        <p><strong>Gematria Sum ({result.shadowAlphabetAnalysis.gematriaSum.value}):</strong> {result.shadowAlphabetAnalysis.gematriaSum.interpretation}</p>
+                        <h5>{result.shadowAlphabetAnalysis.wordSynthesis.title}</h5>
+                        <p>{result.shadowAlphabetAnalysis.wordSynthesis.synthesis}</p>
+                    </div>
+                </div>
+            )}
+
+            {result.astrianAnalysis && renderAstrianSection(result.astrianAnalysis.title, 
+                <div>
+                    <p><strong>Shadow Glyphs:</strong> {result.astrianAnalysis.shadowGlyphFunction}</p>
+                    <p><strong>Israel Key:</strong> {result.astrianAnalysis.israelKeyMapping}</p>
+                    <p><strong>Heartbeat:</strong> Fibonacci Resonance - {result.astrianAnalysis.rhythmicHeartbeat.fibonacciResonance}</p>
+                </div>
+            )}
+
+            {result.emergentSynthesis && renderSection(result.emergentSynthesis.title, <p>{result.emergentSynthesis.theory}</p>)}
+
+            {result.glyphStateLog && (
+                <div className="analysis-section glyph-state-log">
+                    <h4>Glyph State Log</h4>
+                    <div className="log-entries">
+                        {result.glyphStateLog.map((entry, index) => (
+                            <div key={index} className="log-entry">
+                                <p className="log-timestamp">[{entry.timestamp}]</p>
+                                <p className="log-description"><strong>{entry.stateDescription}</strong></p>
+                                <p className="log-details">{entry.details}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {isVeracityVisible && result.veracityData && <VeracityDetails data={result.veracityData} />}
         </div>
     );
 };
 
-const MessageView: FC<{ record: SessionRecord, onNumberInteract: (num: number) => void, onToggleFavorite: (id: string) => void }> = ({ record, onNumberInteract, onToggleFavorite }) => {
-    switch (record.type) {
-        case 'user':
-            return <div className="message user-message"><p>{(record as UserMessage).text}</p></div>;
-        case 'system':
-            return <div className="message system-message"><p>{(record as SystemMessage).text}</p></div>;
-        case 'ai':
-            const aiRecord = record as AIMessage;
-            return (
-                <div className="message ai-message">
-                    <div dangerouslySetInnerHTML={{ __html: aiRecord.text.replace(/(\r\n|\n|\r)/gm, "<br />") }}></div>
-                    {aiRecord.analysisType === 'musical_composition' && aiRecord.result && (
-                        <MusicalCompositionView composition={aiRecord.result} onToggleFavorite={onToggleFavorite} />
-                    )}
-                     {aiRecord.analysisType === 'day_planner' && aiRecord.result && (
-                        <DayPlannerView result={aiRecord.result} />
-                    )}
-                     {aiRecord.analysisType === 'compass_cipher' && aiRecord.result && (
-                        <CompassCipherView result={aiRecord.result} />
-                    )}
+const VoynichTranslationView: FC<{ result: VoynichTranslationResult; messageId: string; isBookmarked: boolean; onToggleBookmark: (id: string) => void; }> = ({ result, messageId, isBookmarked, onToggleBookmark }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    const filteredEntries = useMemo(() => {
+        if (!searchTerm.trim()) return result.entries;
+        const lowerSearch = searchTerm.toLowerCase().trim();
+        return result.entries.filter(entry =>
+            entry.folio.toLowerCase().includes(lowerSearch) ||
+            entry.theme.toLowerCase().includes(lowerSearch) ||
+            entry.translation.toLowerCase().includes(lowerSearch)
+        );
+    }, [searchTerm, result.entries]);
+
+    useEffect(() => {
+        setCurrentIndex(0);
+    }, [searchTerm]);
+
+    const handleNext = () => setCurrentIndex(prev => Math.min(prev + 1, filteredEntries.length - 1));
+    const handlePrev = () => setCurrentIndex(prev => Math.max(prev - 1, 0));
+    
+    const currentEntry = filteredEntries.length > 0 ? filteredEntries[currentIndex] : null;
+    const themeClass = currentEntry ? getThemeClass(currentEntry.theme) : 'theme-default';
+
+    return (
+        <div className={`voynich-translation-view message-bubble ${themeClass}`}>
+            <div className="analysis-actions">
+                <button className={`analysis-action-btn ${isBookmarked ? 'bookmarked' : ''}`} onClick={() => onToggleBookmark(messageId)} aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}>
+                    {isBookmarked ? '★' : '☆'}
+                </button>
+            </div>
+            <h3>Folio-by-Folio Translation</h3>
+            <div className="voynich-translation-controls">
+                <input
+                    type="search"
+                    className="search-bar"
+                    placeholder="Search folio or theme..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    aria-label="Search folios"
+                />
+                {filteredEntries.length > 1 && (
+                    <div className="folio-navigation">
+                         <button onClick={handlePrev} disabled={currentIndex === 0}>‹ Prev</button>
+                         <span className="folio-counter" aria-live="polite">{currentIndex + 1} / {filteredEntries.length}</span>
+                         <button onClick={handleNext} disabled={currentIndex >= filteredEntries.length - 1}>Next ›</button>
+                    </div>
+                )}
+            </div>
+
+            {currentEntry ? (
+                 <div key={currentIndex} className="folio-entry">
+                    <h4>Folio {currentEntry.folio}</h4>
+                    <p className="folio-theme">{currentEntry.theme}</p>
+                    <p className="translation-text">{currentEntry.translation}</p>
+                    {currentEntry.notes && currentEntry.notes.length > 0 &&
+                        <div className="translation-notes">
+                            <h5>Notes:</h5>
+                            <ul>
+                                {currentEntry.notes.map((note, noteIndex) => (
+                                    <li key={noteIndex}>
+                                        <strong>{note.term}:</strong> {note.explanation}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    }
                 </div>
-            );
-        case 'component':
-            const componentRecord = record as ComponentMessage;
-            switch (componentRecord.component) {
-                case 'music_composer':
-                    return <MusicComposerView props={componentRecord.props} />;
-                case 'entrainment_selection':
-                    return <EntrainmentSelectionView props={componentRecord.props} />;
-                case 'gevurah_engine':
-                    return <GevurahEngineView props={componentRecord.props} />;
-                case 'whitepaper_initiation':
-                    return <WhitepaperInitiationView props={componentRecord.props} />;
-                case 'whitepaper_view':
-                    return <WhitepaperView props={componentRecord.props} />;
-                default:
-                    return <div className="message system-message"><p>Component '{componentRecord.component}' not implemented.</p></div>;
+            ) : (
+                <p>No matching folios found.</p>
+            )}
+        </div>
+    );
+};
+
+const AIMessageContent: FC<{ message: AIMessage; onNumberInteract: (num: number) => void; isBookmarked: boolean; onToggleBookmark: (id: string) => void; }> = ({ message, onNumberInteract, isBookmarked, onToggleBookmark }) => {
+    const renderTextWithInteractions = (text: string) => {
+        const parts = text.split(/(\b\d+\b)/g);
+        return parts.map((part, index) => {
+            if (/^\d+$/.test(part)) {
+                return <span key={index} className="interactive-number" onClick={() => onNumberInteract(parseInt(part, 10))}>{part}</span>;
             }
+            return part;
+        });
+    };
+
+    switch (message.analysisType) {
+        case 'voynich_analysis':
+            return <VoynichAnalysisView result={message.result as VoynichAnalysisResult} messageId={message.id} isBookmarked={isBookmarked} onToggleBookmark={onToggleBookmark} />;
+        case 'voynich_deep_analysis':
+            return <VoynichDeepAnalysisView result={message.result as VoynichDeepAnalysisResult} messageId={message.id} isBookmarked={isBookmarked} onToggleBookmark={onToggleBookmark} />;
+        case 'voynich_translation':
+             return <VoynichTranslationView result={message.result as VoynichTranslationResult} messageId={message.id} isBookmarked={isBookmarked} onToggleBookmark={onToggleBookmark} />;
         default:
-            return null;
+            return <div className="message-bubble">{renderTextWithInteractions(message.text)}</div>;
     }
 };
 
-{/* FIX: Removed unused props to resolve type errors and clean up the component interface. */}
-export const ChatView: FC<{
+interface ChatViewProps {
     history: SessionRecord[];
     isLoading: boolean;
     error: string | null;
@@ -664,24 +950,43 @@ export const ChatView: FC<{
     isListening: boolean;
     onStartListening: (callback: (text: string) => void) => void;
     onToggleFavorite: (id: string) => void;
-}> = ({
-    history, isLoading, error, onRetry, onNumberInteract,
-    input, onInputChange, onSend, onSpeak, isVoiceEnabled, isListening, onStartListening, onToggleFavorite
+    bookmarks: AIMessage[];
+    onToggleBookmark: (id: string) => void;
+}
+
+export const ChatView: FC<ChatViewProps> = ({
+    history,
+    isLoading,
+    error,
+    onRetry,
+    onNumberInteract,
+    input,
+    onInputChange,
+    onSend,
+    onSpeak,
+    isVoiceEnabled,
+    isListening,
+    onStartListening,
+    onToggleFavorite,
+    bookmarks,
+    onToggleBookmark
 }) => {
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatHistoryRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [history, isLoading]);
+        if (chatHistoryRef.current) {
+            chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+        }
+    }, [history]);
 
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
             e.preventDefault();
             onSend();
         }
     };
-
-    const handleVoiceStart = () => {
+    
+    const handleVoiceInput = () => {
         onStartListening((transcript) => {
             onInputChange(transcript);
         });
@@ -689,204 +994,113 @@ export const ChatView: FC<{
 
     return (
         <div className="chat-view-container">
-            <div className="message-list">
-                {history.map(record => (
-                    <MessageView key={record.id} record={record} onNumberInteract={onNumberInteract} onToggleFavorite={onToggleFavorite} />
-                ))}
+            <div className="chat-history" ref={chatHistoryRef}>
+                {history.map(record => {
+                    const isBookmarked = record.type === 'ai' && bookmarks.some(b => b.id === record.id);
+                    return (
+                        <div key={record.id} className={`chat-message ${record.type}`}>
+                            {record.type === 'user' && (
+                                <div className="message-bubble">{(record as UserMessage).text}</div>
+                            )}
+                            {record.type === 'ai' && (
+                                <AIMessageContent 
+                                    message={record as AIMessage} 
+                                    onNumberInteract={onNumberInteract} 
+                                    isBookmarked={isBookmarked}
+                                    onToggleBookmark={onToggleBookmark}
+                                />
+                            )}
+                            {record.type === 'system' && (
+                                <div className="message-bubble system-message">{(record as SystemMessage).text}</div>
+                            )}
+                        </div>
+                    );
+                })}
                 {isLoading && (
-                     <div className="message ai-message loading-indicator">
-                        <div className="typing-indicator"><span></span><span></span><span></span></div>
+                    <div className="chat-message ai">
+                        <div className="message-bubble loading-bubble">
+                            <div className="loading-glyph">°</div>
+                        </div>
                     </div>
                 )}
-                <div ref={messagesEndRef} />
-            </div>
-
-            {error && (
-                <div className="error-view">
-                    <p>Resonance Fault: {error}</p>
-                    <button onClick={onRetry}>Retry Last Query</button>
-                </div>
-            )}
-            
-            <div className="chat-input-area">
-                <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => onInputChange(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Transmit your query..."
-                    disabled={isLoading}
-                />
-                {isVoiceEnabled && (
-                    <button onClick={handleVoiceStart} disabled={isListening || isLoading} className="voice-btn">
-                        {isListening ? '...' : '🎙️'}
-                    </button>
+                 {error && (
+                    <div className="chat-message system">
+                        <div className="message-bubble error-bubble">
+                            <p>{error}</p>
+                            <button onClick={onRetry}>Retry</button>
+                        </div>
+                    </div>
                 )}
-                <button onClick={onSend} disabled={isLoading || !input.trim()}>Send</button>
             </div>
-        </div>
-    );
-};
-
-// New: Add GuidedTour Component
-const TOUR_STEPS = [
-    {
-        title: "Welcome to the Astrian Key",
-        text: "I am Ayin. It's a pleasure to connect. I will be your guide through this system, which acts as a bridge between language, number, and consciousness. Let's begin.",
-        selector: ".chat-view-container",
-        speech: "Welcome to the Astrian Key. I am Ayin. It's a pleasure to connect. I will be your guide through this system, which acts as a bridge between language, number, and consciousness. Let's begin."
-    },
-    {
-        title: "The Oracle Ticker",
-        text: "Above, you'll find the Oracle Ticker. It constantly streams esoteric questions and command prompts. Click any of them to begin an inquiry.",
-        selector: ".oracle-ticker-container",
-        speech: "Above, you'll find the Oracle Ticker. It constantly streams esoteric questions and command prompts. Click any of them to begin an inquiry."
-    },
-    {
-        title: "Your Query Terminal",
-        text: "This is your primary interface. You can type any question or command here. Try asking about the 'Tree of Life' or the number '137'.",
-        selector: ".chat-input-area",
-        speech: "This is your primary interface. You can type any question or command here. Try asking about the Tree of Life, or the number 137."
-    },
-    {
-        title: "AWE Signature & Ayin",
-        text: "This is me. To unlock my full vocal capabilities and advanced protocols like personalized meditations, you'll need to complete your AWE signature. This attunes the system to your unique resonance.",
-        selector: ".ayin-guide-container",
-        speech: "This is me. To unlock my full vocal capabilities and advanced protocols, you'll need to complete your AWE signature. This attunes the system to your unique resonance."
-    },
-    {
-        title: "Let's Begin",
-        text: "That's the basics. The system is now yours to explore. Remember, every query is a step on a path. Where will you go?",
-        selector: ".app-content-wrapper",
-        speech: "That's the basics. The system is now yours to explore. Remember, every query is a step on a path. Where will you go?"
-    }
-];
-
-export const GuidedTour: FC<{
-    step: number;
-    onNext: (step: number) => void;
-    onSkip: () => void;
-    speak: (text: string) => void;
-}> = ({ step, onNext, onSkip, speak }) => {
-    const currentStep = TOUR_STEPS[step];
-    const targetRef = useRef<HTMLElement | null>(null);
-
-    useEffect(() => {
-        if(currentStep?.speech) {
-            setTimeout(() => speak(currentStep.speech), 300);
-        }
-    }, [step, speak, currentStep]);
-    
-    useEffect(() => {
-        document.querySelectorAll('.tour-highlight').forEach(el => el.classList.remove('tour-highlight'));
-        if (currentStep && currentStep.selector) {
-            try {
-                targetRef.current = document.querySelector(currentStep.selector);
-                targetRef.current?.classList.add('tour-highlight');
-            } catch (e) {
-                console.error("Tour selector failed:", currentStep.selector, e);
-            }
-        }
-        return () => {
-             targetRef.current?.classList.remove('tour-highlight');
-        }
-    }, [step, currentStep]);
-
-
-    if (!currentStep) return null;
-
-    const isLastStep = step === TOUR_STEPS.length - 1;
-
-    return (
-        <div className="tour-overlay">
-            <div className="tour-card card">
-                <h3>{currentStep.title}</h3>
-                <p>{currentStep.text}</p>
-                <div className="form-actions tour-actions">
-                    <button className="action-btn secondary-action" onClick={() => onSkip()}>Skip Tour</button>
-                    <button className="action-btn" onClick={() => isLastStep ? onSkip() : onNext(step + 1)}>
-                        {isLastStep ? 'Finish' : 'Next'}
+            <div className="chat-input-area">
+                <form className="chat-input-form" onSubmit={(e) => { e.preventDefault(); onSend(); }}>
+                     <button
+                        type="button"
+                        className={`voice-input-btn ${isListening ? 'listening' : ''}`}
+                        onClick={handleVoiceInput}
+                        disabled={!isVoiceEnabled || isListening}
+                        aria-label={isListening ? "Listening..." : "Start voice input"}
+                    >
+                        🎙
                     </button>
-                </div>
+                    <input
+                        type="text"
+                        className="chat-input"
+                        placeholder="Ask..."
+                        value={input}
+                        onChange={(e) => onInputChange(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        disabled={isLoading}
+                        aria-label="Chat input"
+                    />
+                    <button type="submit" className="chat-submit-btn" disabled={isLoading || !input.trim()} aria-label="Send message">
+                        ›
+                    </button>
+                </form>
             </div>
         </div>
     );
 };
 
+// =================================================================================================
+// --- OTHER MISSING COMPONENTS (PLACEHOLDERS) ---
+// =================================================================================================
 
-// Update: AyinGuide now an interactive menu
-export const AyinGuide: FC<{
-    onCommandSelect: (command: string) => void;
-    onOpenIngest: () => void;
-    onStartPalmistry: () => void;
-    onStartVoiceAnalysis: () => void;
-    onGeneratePlanner: () => void;
-    isAweComplete: boolean;
-    isPlannerUnlocked: boolean;
-    onStartTour: () => void;
-    isFirstVisit: boolean;
-    onDownloadArchive: () => void;
-}> = ({ onCommandSelect, onOpenIngest, onStartPalmistry, onStartVoiceAnalysis, onGeneratePlanner, isAweComplete, isPlannerUnlocked, onStartTour, isFirstVisit, onDownloadArchive }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+export const KaleidoscopicBackground: FC<{resonance: number}> = ({ resonance }) => <div className="kaleidoscopic-background" style={{ '--seed': resonance } as React.CSSProperties}></div>;
+export const SubliminalGlyph: FC<{seed: number}> = () => <div style={{display: 'none'}}>SubliminalGlyph</div>;
+export const SessionUnlockView: FC<any> = ({ onUnlock }) => <div className="session-unlock-view card"><h2>Session Locked</h2><button onClick={onUnlock}>Unlock Session</button></div>;
+export const MeditationView: FC<any> = ({ onFinish }) => <div className="meditation-view card"><h2>Meditation in Progress</h2><button onClick={onFinish}>Finish Meditation</button></div>;
+export const AyinGuide: FC<any> = () => <div style={{display: 'none'}}>AyinGuide</div>;
+export const StelaCalibrationView: FC<any> = () => <div className="stela-calibration-view">Stela Calibration</div>;
 
-    const handleToggle = () => setIsOpen(prev => !prev);
-    
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                const guideButton = document.querySelector('.ayin-guide-container');
-                if (guideButton && !guideButton.contains(event.target as Node)) {
-                    setIsOpen(false);
-                }
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    const handleMenuClick = (action: () => void) => {
-        action();
-        setIsOpen(false);
-    };
-    
-    const handleCommandClick = (command: string) => {
-        onCommandSelect(command);
-        setIsOpen(false);
-    };
-
+export const InstructionalCompositionView: FC<{ session: InstructionalCompositionSession, onStop: () => void }> = ({ session, onStop }) => {
     return (
-        <div className="ayin-guide-container" ref={menuRef}>
-            <button onClick={handleToggle} className={`ayin-guide-button ${isOpen ? 'open' : ''}`} aria-label="Open Ayin Menu">
-                <span className="ayin-icon">ע</span>
-            </button>
-            {isOpen && (
-                <div className="ayin-menu card">
-                    {isFirstVisit && <button className="menu-item" onClick={() => handleMenuClick(onStartTour)}>Start Guided Tour</button>}
-                    <div className="menu-separator"></div>
-                    <p className="menu-header">AWE Signature</p>
-                    {!isAweComplete && <p className="menu-status">Incomplete</p>}
-                    <button className="menu-item" onClick={() => handleMenuClick(onStartPalmistry)} disabled={isAweComplete}>Perform Palmistry Scan</button>
-                    <button className="menu-item" onClick={() => handleMenuClick(onStartVoiceAnalysis)} disabled={isAweComplete}>Perform Voice Analysis</button>
-                    {isAweComplete && <p className="menu-status complete">✓ Complete (Dev Mode)</p>}
-                    <div className="menu-separator"></div>
-                    <p className="menu-header">Protocols</p>
-                    <button className="menu-item" onClick={() => handleCommandClick("°instruct ")}>Instruct...</button>
-                    <button className="menu-item" onClick={() => handleCommandClick("°entrain")}>Entrain...</button>
-                    <button className="menu-item" onClick={() => handleCommandClick("°compose ")}>Compose...</button>
-                    <button className="menu-item" onClick={() => handleCommandClick('°cipher encode "" offset 0')}>Cipher...</button>
-                    <div className="menu-separator"></div>
-                    <p className="menu-header">Planner</p>
-                    <button className="menu-item" onClick={() => handleMenuClick(onGeneratePlanner)} disabled={!isPlannerUnlocked}>Generate Day Planner</button>
-                    {!isPlannerUnlocked && <p className="menu-status-small">Requires AWE, Palm, and Voice scans.</p>}
-                    <div className="menu-separator"></div>
-                    <p className="menu-header">Session</p>
-                    <button className="menu-item" onClick={() => handleMenuClick(onDownloadArchive)}>Download Archive</button>
-                </div>
-            )}
+        <div className="instructional-composition-view card">
+            <h2>
+                {session.title ? `Playing: ${session.title}` : `Instructional Composition: ${session.coreEmotion}`}
+            </h2>
+            {session.symbolicMantra && <p>Mantra: {session.symbolicMantra}</p>}
+            {session.audioUrl && <audio src={session.audioUrl} controls autoPlay loop style={{width: '100%', marginTop: '1rem'}} />}
+            <button onClick={onStop} style={{marginTop: '1rem'}}>Stop Composition</button>
         </div>
     );
 };
+
+export const EntrainmentView: FC<any> = ({ onStop }) => <div className="entrainment-view card"><h2>Entrainment in Progress</h2><button onClick={onStop}>Stop Entrainment</button></div>;
+export const EmergentCTA: FC<any> = () => <div style={{display: 'none'}}>EmergentCTA</div>;
+export const BootAnimationView: FC<any> = ({ onEnter, isComplete, statusText, subText }) => (
+    <div className="boot-animation-view">
+        <div className="vortex-container">
+            <div className="vortex-layer"></div>
+            <div className="vortex-layer"></div>
+            <div className="vortex-layer"></div>
+        </div>
+         <button className="boot-ayin" onClick={onEnter} disabled={!isComplete} aria-label="Enter Application">°</button>
+        <div className="boot-summary-container">
+            <div className="boot-summary-scroll">
+                <p>{statusText}</p>
+                <p>{subText}</p>
+            </div>
+        </div>
+    </div>
+);

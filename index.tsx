@@ -1,17 +1,11 @@
-import React, { FC, useCallback, useState } from 'react';
+import React, { FC, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useAstrianSystem } from './hooks';
-import { Toast } from './types';
+import { useAstrianSystem, useUserInterface } from './hooks';
 import {
-    ChatView,
-    KaleidoscopicBackground,
-    CrossReferenceModal, SubliminalGlyph, ToastContainer, SessionUnlockView, MeditationView, AyinGuide,
-    StelaCalibrationView,
-    InstructionalCompositionView,
-    EntrainmentView,
-    OracleTicker,
-    EmergentCTA,
-    GuidedTour,
+    ChatView, KaleidoscopicBackground, SubliminalGlyph, SessionUnlockView, MeditationView, 
+    AyinGuide, StelaCalibrationView, InstructionalCompositionView, EntrainmentView, EmergentCTA,
+    AstrianInterface,
+    BootAnimationView
 } from './components';
 
 // =================================================================================================
@@ -19,27 +13,13 @@ import {
 // =================================================================================================
 
 const App: FC = () => {
-    const {
-        sessionHistory, isLoading, error, isModalOpen, crossRefValue,
-        guidingIntent, resonanceSeed, isSynthesizing, synthesisResult,
-        isPlannerUnlocked, toasts,
-        aweData, setAweData, isAweComplete, palmistryDone, voiceDone,
-        isSessionLocked, activeMeditation, visualChallenge,
-        isCorporaInitialized, calibrationStatus, calibrationSubtext,
-        activeInstructionalComposition,
-        activeEntrainment,
-        chakraTheme,
-        isTourActive, tourStep, isListening, ayinVoiceEnabled,
-        isFirstVisit,
-        handleSendMessage, handleRetry, setIsModalOpen, setGuidingIntent, handleSynthesizeConnections, dismissToast,
-        handleNumberInteract, addMessage, handleUnlockSession, stopMeditation, generateVisualChallenge,
-        handleOpenIngestView, handleStartPalmistry, handleStartVoiceAnalysis, stopInstructionalComposition,
-        stopEntrainment, handlePlannerCommand,
-        startTour, endTour, setTourStep, speakText, startVoiceInput,
-        toggleFavoriteComposition,
-        handleDownloadArchive,
-    } = useAstrianSystem();
+    // Core application state and business logic
+    const system = useAstrianSystem();
     
+    // UI presentation state and interaction logic
+    const ui = useUserInterface(system.addMessage, system.activeSolveSession.isActive, system.isCorporaInitialized);
+    
+    // State for the main chat input, managed at the top level
     const [input, setInput] = useState('');
 
     const handleCommandSelect = (command: string) => {
@@ -47,105 +27,116 @@ const App: FC = () => {
         setInput(prev => prev ? `${prev} ${commandWithSpace}` : commandWithSpace);
     };
 
+    const handleDirectCommand = (command: string) => {
+        if (ui.viewMode === 'globe') {
+            ui.setViewMode('callSign');
+        }
+        system.handleSendMessage(command);
+        setInput('');
+    };
+
     const handleSend = () => {
         if (input.trim()) {
-            handleSendMessage(input);
+            // If the user sends a message from the globe, switch them to the chat view
+            // unless they are initiating a new solve session.
+            if (ui.viewMode === 'globe' && !input.toLowerCase().trim().startsWith('°solve')) {
+                ui.setViewMode('callSign');
+            }
+            system.handleSendMessage(input);
             setInput('');
         }
     };
+    
+    // This function encapsulates all the content rendered within the "So Below" view.
+    // It remains here as it's a direct consumer of the `system` state.
+    const renderCallSignContent = () => {
+        if (system.activeInstructionalComposition) {
+            return <InstructionalCompositionView session={system.activeInstructionalComposition} onStop={system.stopInstructionalComposition} />;
+        }
+        if (system.activeEntrainment) {
+            return <EntrainmentView session={system.activeEntrainment} onStop={system.stopEntrainment} />;
+        }
+        if (system.isSessionLocked) {
+            return <SessionUnlockView onUnlock={system.handleUnlockSession} challenge={system.visualChallenge} isLoading={system.isLoading} onRegenerate={system.generateVisualChallenge} />;
+        }
+        if (system.activeMeditation) {
+            return <MeditationView script={system.activeMeditation.script} imagePrompts={system.activeMeditation.imagePrompts} onFinish={system.stopMeditation} />;
+        }
+        
+        const lastMessage = system.sessionHistory.length > 0 ? system.sessionHistory[system.sessionHistory.length - 1] : null;
 
-
-    const renderContent = () => {
-        if (activeInstructionalComposition) {
-            return <InstructionalCompositionView session={activeInstructionalComposition} onStop={stopInstructionalComposition} />;
-        }
-        if (activeEntrainment) {
-            return <EntrainmentView session={activeEntrainment} onStop={stopEntrainment} />;
-        }
-        if (!isCorporaInitialized) {
-            return <StelaCalibrationView statusText={calibrationStatus} subText={calibrationSubtext} />;
-        }
-        if (isSessionLocked) {
-            return <SessionUnlockView 
-                        onUnlock={handleUnlockSession} 
-                        challenge={visualChallenge}
-                        isLoading={isLoading}
-                        onRegenerate={generateVisualChallenge}
-                    />;
-        }
-        if (activeMeditation) {
-            return <MeditationView script={activeMeditation.script} imagePrompts={activeMeditation.imagePrompts} onFinish={stopMeditation} />;
-        }
         return (
-            <>
-                <main>
-                   {/* FIX: Removed invalid and unused props from ChatView. */}
-                   <ChatView
-                       history={sessionHistory}
-                       isLoading={isLoading}
-                       error={error}
-                       onRetry={handleRetry}
-                       onNumberInteract={handleNumberInteract}
-                       input={input}
-                       onInputChange={setInput}
-                       onSend={handleSend}
-                       onSpeak={speakText}
-                       isVoiceEnabled={ayinVoiceEnabled}
-                       isListening={isListening}
-                       onStartListening={startVoiceInput}
-                       onToggleFavorite={toggleFavoriteComposition}
-                   />
-                </main>
-                {isModalOpen && crossRefValue !== null && (
-                    <CrossReferenceModal 
-                        value={crossRefValue} 
-                        history={sessionHistory} 
-                        onClose={() => setIsModalOpen(false)}
-                        onSynthesize={handleSynthesizeConnections}
-                        isSynthesizing={isSynthesizing}
-                        synthesisResult={synthesisResult}
-                    />
-                )}
-                <SubliminalGlyph seed={resonanceSeed} />
-            </>
+            <div className="app-content-wrapper">
+                 <ChatView
+                    history={system.sessionHistory}
+                    isLoading={system.isLoading}
+                    error={system.error}
+                    onRetry={system.handleRetry}
+                    onNumberInteract={system.handleNumberInteract}
+                    input={input}
+                    onInputChange={setInput}
+                    onSend={handleSend}
+                    onSpeak={system.speakText}
+                    isVoiceEnabled={system.ayinVoiceEnabled}
+                    isListening={system.isListening}
+                    onStartListening={system.startVoiceInput}
+                    onToggleFavorite={system.toggleFavoriteComposition}
+                    bookmarks={system.bookmarks}
+                    onToggleBookmark={system.toggleBookmark}
+                 />
+                 <AyinGuide
+                    onCommandSelect={handleCommandSelect}
+                    onOpenIngest={system.handleOpenIngestView}
+                    onStartPalmistry={system.handleStartPalmistry}
+                    /* FIX: Corrected a typo in the prop name. The hook provides 'handleStartVoiceAnalysis', not 'startVoiceAnalysis'. */
+                    onStartVoiceAnalysis={system.handleStartVoiceAnalysis}
+                    onGeneratePlanner={system.handlePlannerCommand}
+                    isAweComplete={system.isAweComplete}
+                    isPlannerUnlocked={system.isPlannerUnlocked}
+                    onStartTour={system.startTour}
+                    isFirstVisit={system.isFirstVisit}
+                    onDownloadArchive={system.handleDownloadArchive}
+                 />
+                 <EmergentCTA onTrigger={system.handleSendMessage} lastMessage={lastMessage} />
+                 <SubliminalGlyph seed={system.resonanceSeed} />
+            </div>
         );
     };
 
-    return (
-        <div className="app-content-wrapper" data-chakra-theme={chakraTheme}>
-            <KaleidoscopicBackground resonance={resonanceSeed} />
-            <OracleTicker onSelect={handleCommandSelect} />
-            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-            
-            {isTourActive && (
-                <GuidedTour
-                    step={tourStep}
-                    onNext={setTourStep}
-                    onSkip={endTour}
-                    speak={speakText}
+    // The new boot animation screen takes over until initialization is complete
+    // AND the user has clicked the Ayin to enter the main application.
+    if (!system.isCorporaInitialized || ui.viewMode === 'boot') {
+        return (
+            <>
+                <KaleidoscopicBackground resonance={system.resonanceSeed} />
+                <BootAnimationView
+                    statusText={system.calibrationStatus}
+                    subText={system.calibrationSubtext}
+                    isComplete={system.isCorporaInitialized}
+                    onEnter={ui.navigateToHome}
                 />
-            )}
+            </>
+        );
+    }
 
-            {renderContent()}
+    const isSolveActive = system.activeSolveSession.isActive;
 
-            {isCorporaInitialized && !isSessionLocked && !activeMeditation && !activeInstructionalComposition && !activeEntrainment && (
-                <>
-                    <AyinGuide
-                        onCommandSelect={handleCommandSelect}
-                        onOpenIngest={handleOpenIngestView}
-                        onStartPalmistry={handleStartPalmistry}
-                        onStartVoiceAnalysis={handleStartVoiceAnalysis}
-                        onGeneratePlanner={handlePlannerCommand}
-                        isAweComplete={isAweComplete}
-                        isPlannerUnlocked={isPlannerUnlocked}
-                        onStartTour={startTour}
-                        isFirstVisit={isFirstVisit}
-                        onDownloadArchive={handleDownloadArchive}
-                    />
-                    <EmergentCTA onTrigger={handleSendMessage} />
-                </>
-            )}
-        </div>
+    // The App component now has a much cleaner return statement. It provides the foundational
+    // background and then delegates all complex UI rendering to the AstrianInterface component,
+    // passing in the state and handlers from both the system and UI hooks.
+    return (
+        <>
+            <KaleidoscopicBackground resonance={system.resonanceSeed} />
+            <AstrianInterface
+                {...system}
+                {...ui}
+                isSolveActive={isSolveActive}
+                onCommandSelect={handleCommandSelect}
+                onDirectCommand={handleDirectCommand}
+            >
+                {renderCallSignContent()}
+            </AstrianInterface>
+        </>
     );
 };
 
