@@ -12,6 +12,36 @@ import { Type } from "@google/genai";
 // --- API SCHEMAS ---
 // =================================================================================================
 
+export const solveFindingSchema = {
+    type: Type.OBJECT,
+    properties: {
+        findings: {
+            type: Type.ARRAY,
+            description: "An array of 3-5 distinct, verbose, and insightful analytical findings about the target concept.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    type: {
+                        type: Type.STRING,
+                        enum: ['Pattern', 'Resonance', 'ELS', 'Synthesis', 'Query'],
+                        description: "The category of the finding. 'Pattern' for structural/repeating elements. 'Resonance' for conceptual/thematic links. 'ELS' for textual sequences. 'Synthesis' for high-level conclusions. 'Query' for a new question this finding raises."
+                    },
+                    content: {
+                        type: Type.STRING,
+                        description: "A detailed, verbose description of the finding. Should be written as if from a terminal log."
+                    },
+                    confidence: {
+                        type: Type.NUMBER,
+                        description: "A confidence score from 0.0 to 1.0 representing the certainty of this finding."
+                    }
+                },
+                required: ['type', 'content', 'confidence']
+            }
+        }
+    },
+    required: ['findings']
+};
+
 export const chakraThemeSchema = {
     type: Type.OBJECT,
     properties: {

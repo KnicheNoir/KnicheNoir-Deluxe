@@ -1,6 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { codex } from './codex';
-import { CascadeCorrespondence, AWEFormData, EntrainmentProfile, ELSResult, ExhaustiveResonanceResult, StrongsEntry, GematriaAnalysis, DeepELSAnalysisResult, GuidingIntent, SessionRecord, UserMessage, AIMessage, SystemMessage, ComponentMessage, NetworkPatternResult, MusicalComposition, NoteEvent, AIProductionNotes, LetterformAnalysis, StructuralAnalysisResult, HarmonicResonanceResult, InstrumentProfile, ResonancePotentialMapResult, CompassCipherResult } from './types';
+// FIX: Imported the missing 'LetterformAnalysis' type to resolve the TypeScript error.
+import { CascadeCorrespondence, AWEFormData, EntrainmentProfile, ELSResult, ExhaustiveResonanceResult, StrongsEntry, GematriaAnalysis, DeepELSAnalysisResult, GuidingIntent, SessionRecord, UserMessage, AIMessage, SystemMessage, ComponentMessage, NetworkPatternResult, MusicalComposition, NoteEvent, AIProductionNotes, InstrumentProfile, ResonancePotentialMapResult, CompassCipherResult, LetterformAnalysis } from './types';
 import { hebraicCartographerSchema, hellenisticCartographerSchema, apocryphalAnalysisSchema, aweSynthesisSchema, palmistryAnalysisSchema, astrianDayPlannerSchema, voiceResonanceAnalysisSchema, deepElsAnalysisSchema, meditationScriptSchema, aiProductionNotesSchema, instructionalCompositionAnalysisSchema, chakraThemeSchema } from './constants';
 import { LibraryService } from './library';
 import { hebrewNetwork } from './dataModels';
@@ -379,6 +380,19 @@ export class GeminiService {
         1.  When asked a general question, provide a direct, insightful answer based on the context.
         2.  When asked 'how', 'why', or to explain a previous analysis (a '°' answer), you MUST provide a METAPHYSICAL explanation, not a technical one. Frame your answers as observations of cosmic principles, textual resonance, structural integrity, and archetypal meaning.
         
+        ORACULAR VERNACULAR:
+        When explaining concepts, map them to universal, non-denominational archetypes instead of their direct esoteric names.
+        - A beginning/unity (Aleph) is 'The Unstruck Spark'.
+        - A container/creation (Bet) is 'The Sacred Vessel'.
+        - A connection (Vav) is 'The Golden Thread'.
+        - Life (Het) is 'The Living Gate'.
+        - Water/source (Mem) is 'The Primal Spring'.
+        - Spirit (Yud) is 'The Seed of Spirit'.
+        - Vision (Ayin) is 'The Eye of Providence'.
+        - Fire/change (Shin) is 'The Transforming Flame'.
+        - Completion (Tav) is 'The Final Seal'.
+        Use this archetypal language to construct your metaphysical explanations.
+
         EXAMPLE OF CORRECT METAPHYSICAL EXPLANATION:
         -   User asks: "How are the structural hubs in my last query determined?"
         -   YOUR CORRECT RESPONSE: "Structural hubs are the letters that act as gravitational centers within the query's conceptual field. They are the primary conduits through which the query's meaning flows, much like a star in a solar system. Their prominence is an inherent property of the text, not a calculation."

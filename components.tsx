@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo, FC, ReactNode } from 'react';
-import { SessionRecord, Toast, AIMessage, UserMessage, SystemMessage, VisualChallenge, InstructionalCompositionSession, ActiveEntrainmentSession, SolveFinding, VoynichAnalysisResult, ComponentMessage, VoynichDeepAnalysisResult, CallSign, VoynichTranslationResult, ActiveSolveSession, ViewMode, MusicalComposition, MeditationResult, VeracityEntry, GlyphStateEntry, OperatorManual, OperatorProtocol } from './types';
+import { SessionRecord, Toast, AIMessage, UserMessage, SystemMessage, VisualChallenge, InstructionalCompositionSession, ActiveEntrainmentSession, SolveFinding, VoynichAnalysisResult, ComponentMessage, VoynichDeepAnalysisResult, CallSign, VoynichTranslationResult, ActiveSolveSession, ViewMode, MusicalComposition, MeditationResult, VeracityEntry, GlyphStateEntry, OperatorManual, OperatorProtocol, BealeCipherSolution } from './types';
 import { codex } from './codex';
+import { toPng } from 'html-to-image';
 
 // =================================================================================================
 // --- UI FRAMEWORK & PRESENTATION LOGIC ---
@@ -61,6 +62,8 @@ interface AstrianInterfaceProps {
     setIsArchiveOpen: (isOpen: boolean) => void;
     isManualOpen: boolean;
     setIsManualOpen: (isOpen: boolean) => void;
+    isWhiteboardOpen: boolean;
+    setIsWhiteboardOpen: (isOpen: boolean) => void;
 
     // From App
     onCommandSelect: (command: string) => void;
@@ -143,10 +146,12 @@ interface AsAboveMenuProps {
     onOpenBookmarks: () => void;
     onOpenArchive: () => void;
     onOpenManual: () => void;
+    onOpenWhiteboard: () => void;
 }
-export const AsAboveMenu: FC<AsAboveMenuProps> = ({ onOpenBookmarks, onOpenArchive, onOpenManual }) => {
+export const AsAboveMenu: FC<AsAboveMenuProps> = ({ onOpenBookmarks, onOpenArchive, onOpenManual, onOpenWhiteboard }) => {
     return (
         <div className="as-above-menu">
+            <button onClick={onOpenWhiteboard} aria-label="Open Whiteboard" title="Open Whiteboard">🔬</button>
             <button onClick={onOpenManual} aria-label="Open Operator's Manual" title="Open Operator's Manual">🔧</button>
             <button onClick={onOpenArchive} aria-label="Open Session Archive" title="Open Session Archive">📜</button>
             <button onClick={onOpenBookmarks} aria-label="Open Bookmarks" title="Open Bookmarks">📖</button>
@@ -317,7 +322,7 @@ const WireframeGlobe: FC<{ rotation: { x: number, y: number }, onCallSignSelect:
     );
 };
 
-export const GlobeView: FC<any> = ({ onCompassDoubleClick, onOpenBookmarks, onOpenArchive, onOpenManual, handleCallSignSelect }) => {
+export const GlobeView: FC<any> = ({ onCompassDoubleClick, onOpenBookmarks, onOpenArchive, onOpenManual, handleCallSignSelect, onOpenWhiteboard }) => {
     const DRAG_SENSITIVITY = 0.25;
     const INERTIA_DAMPING = 0.95;
     const INERTIA_STOP_THRESHOLD = 0.1;
@@ -418,7 +423,7 @@ export const GlobeView: FC<any> = ({ onCompassDoubleClick, onOpenBookmarks, onOp
     return (
         <div className="globe-view" onMouseMove={handleMouseMove}>
             <Starscape />
-            <AsAboveMenu onOpenBookmarks={onOpenBookmarks} onOpenArchive={onOpenArchive} onOpenManual={onOpenManual} />
+            <AsAboveMenu onOpenBookmarks={onOpenBookmarks} onOpenArchive={onOpenArchive} onOpenManual={onOpenManual} onOpenWhiteboard={onOpenWhiteboard} />
             <div className="globe-container" onMouseDown={handleMouseDown}>
                  <WireframeGlobe rotation={rotation} onCallSignSelect={handleCallSignSelect} />
             </div>
@@ -559,6 +564,110 @@ export const OperatorManualView: FC<OperatorManualViewProps> = ({ isOpen, onClos
     );
 };
 
+// NEW COMPONENT: WhiteboardView
+interface WhiteboardViewProps {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+export const WhiteboardView: FC<WhiteboardViewProps> = memo(({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    const [voynichInput, setVoynichInput] = useState('v89.v12.c1.v56');
+    const [hebrewOutput, setHebrewOutput] = useState('');
+    const [transliterationResult, setTransliterationResult] = useState('');
+    const whiteboardRef = useRef<HTMLDivElement>(null);
+
+    const analysisData = useMemo(() => {
+        const data = codex.getLiberPrimusData('voynichInitialAnalysis') as VoynichAnalysisResult | null;
+        if (!data) return { mappings: new Map(), sample: null, fullMappings: [] };
+        
+        const mappings = new Map<string, { hebrew: string, archetype: string }>();
+        data.glyphMappings.forEach(m => {
+            const hebrewLetter = m.hebrewMapping.split(' ')[0];
+            const archetype = m.publicArchetype || m.hebrewMapping.split('(')[1]?.replace(')','') || '';
+            mappings.set(m.glyphId, { hebrew: hebrewLetter, archetype: archetype });
+        });
+        return { mappings, sample: data.decryptionSample, fullMappings: data.glyphMappings };
+    }, []);
+
+    useEffect(() => {
+        const glyphIds = voynichInput.trim().split(/[.\s,]+/);
+        const hebrewString = glyphIds.map(id => analysisData.mappings.get(id)?.hebrew || '�').join('');
+        setHebrewOutput(hebrewString);
+        
+        if (voynichInput.trim().toLowerCase() === analysisData.sample?.original.toLowerCase()) {
+             setTransliterationResult(`Known Sample Match: "${analysisData.sample.decrypted}"`);
+        } else {
+             setTransliterationResult('');
+        }
+    }, [voynichInput, analysisData]);
+
+    const handleGenerateImage = useCallback(() => {
+        if (whiteboardRef.current === null) {
+            return;
+        }
+        toPng(whiteboardRef.current, { cacheBust: true, backgroundColor: '#030617', style: { padding: '1rem' } })
+            .then((dataUrl) => {
+                const link = document.createElement('a');
+                link.download = 'voynich-transliteration-workbench.png';
+                link.href = dataUrl;
+                link.click();
+            })
+            .catch((err) => {
+                console.error('Whiteboard image generation failed:', err);
+            });
+    }, []);
+
+    return (
+        <div className="whiteboard-overlay" onClick={onClose}>
+            <div className="whiteboard-modal" onClick={(e) => e.stopPropagation()}>
+                <button className="close-btn" onClick={onClose} aria-label="Close Whiteboard">×</button>
+                <h2>Glyph Transliteration Workbench</h2>
+                <div className="whiteboard-content" ref={whiteboardRef}>
+                    <div className="glyph-key-section">
+                        <h4>Glyph Mapping Key</h4>
+                        <div className="glyph-key-grid">
+                            {analysisData.fullMappings.map(m => (
+                                <div key={m.glyphId} className="glyph-key-item">
+                                    <span className="glyph-id">{m.glyphId}</span>
+                                    <span className="arrow">→</span>
+                                    <span className="hebrew-map">{m.hebrewMapping.split(' ')[0]}</span>
+                                    <span className="archetype">{m.publicArchetype ? `(${m.publicArchetype})` : ''}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="transliteration-section">
+                        <h4>Interactive Transliteration</h4>
+                        <div className="transliteration-io">
+                            <label htmlFor="voynich-input">Voynich Input (dot-separated IDs):</label>
+                            <textarea
+                                id="voynich-input"
+                                value={voynichInput}
+                                onChange={(e) => setVoynichInput(e.target.value)}
+                                rows={4}
+                                placeholder="Enter glyph IDs e.g., v89.v12.c1.v56"
+                            />
+                            <label>Live Hebrew Transliteration:</label>
+                            <div className="transliteration-output" dir="rtl" lang="he">
+                                {hebrewOutput || <span className="placeholder">Output will appear here...</span>}
+                            </div>
+                            {transliterationResult && (
+                                <div className="transliteration-result">{transliterationResult}</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                 <div className="whiteboard-actions">
+                    <button onClick={() => setVoynichInput('')}>Clear</button>
+                    <button onClick={handleGenerateImage}>Export as PNG</button>
+                </div>
+            </div>
+        </div>
+    );
+});
+
 
 export const AstrianInterface: FC<AstrianInterfaceProps> = ({
     isSolveActive, chakraTheme, activeSolveSession, toasts, dismissToast,
@@ -569,7 +678,7 @@ export const AstrianInterface: FC<AstrianInterfaceProps> = ({
     transitionText, activeTool, setActiveTool, viewMode, handleCompassDoubleClick,
     handleBookmarkSelect, onCommandSelect, onDirectCommand, children,
     bookmarks, toggleBookmark, isBookmarksOpen, setIsBookmarksOpen, handleNumberInteract,
-    isArchiveOpen, setIsArchiveOpen, isManualOpen, setIsManualOpen
+    isArchiveOpen, setIsArchiveOpen, isManualOpen, setIsManualOpen, isWhiteboardOpen, setIsWhiteboardOpen
 }) => {
     const containerStyle = useMemo(() => ({
         '--solve-intensity': isSolveActive ? solveIntensity : 0,
@@ -610,6 +719,11 @@ export const AstrianInterface: FC<AstrianInterfaceProps> = ({
                 isOpen={isManualOpen}
                 onClose={() => setIsManualOpen(false)}
             />
+            
+            <WhiteboardView
+                isOpen={isWhiteboardOpen}
+                onClose={() => setIsWhiteboardOpen(false)}
+            />
 
             {showWelcomeOffer && <WelcomeOfferView onStartTour={startTour} onDismiss={handleDismissWelcomeOffer} />}
             {isTourActive && <GuidedTour step={tourStep} onNext={setTourStep} onSkip={endTour} speak={speakText} />}
@@ -632,6 +746,7 @@ export const AstrianInterface: FC<AstrianInterfaceProps> = ({
                     onOpenBookmarks={() => setIsBookmarksOpen(true)}
                     onOpenArchive={() => setIsArchiveOpen(true)}
                     onOpenManual={() => setIsManualOpen(true)}
+                    onOpenWhiteboard={() => setIsWhiteboardOpen(true)}
                 />
                 <SoBelowView isSolveActive={isSolveActive} onCompassDoubleClick={handleCompassDoubleClick} onBookmarkSelect={handleBookmarkSelect}>
                     {children}
@@ -696,7 +811,9 @@ const VoynichAnalysisView: FC<{ result: VoynichAnalysisResult; messageId: string
             <ul className="glyph-list">
                 {result.glyphMappings.map((mapping, index) => (
                     <li key={index}>
-                        <span className="glyph-map">Glyph {mapping.glyphId} → {mapping.hebrewMapping}</span>
+                        <span className="glyph-map">
+                            Glyph {mapping.glyphId} → {mapping.hebrewMapping.split(' ')[0]} {mapping.publicArchetype ? `(${mapping.publicArchetype})` : ''}
+                        </span>
                         <span className="justification">{mapping.justification}</span>
                     </li>
                 ))}
@@ -931,6 +1048,17 @@ const AIMessageContent: FC<{ message: AIMessage; onNumberInteract: (num: number)
             return <VoynichDeepAnalysisView result={message.result as VoynichDeepAnalysisResult} messageId={message.id} isBookmarked={isBookmarked} onToggleBookmark={onToggleBookmark} />;
         case 'voynich_translation':
              return <VoynichTranslationView result={message.result as VoynichTranslationResult} messageId={message.id} isBookmarked={isBookmarked} onToggleBookmark={onToggleBookmark} />;
+        case 'beale_cipher_solution':
+            // This case might be used if a direct solve is ever re-implemented.
+            // For now, it will not be hit by the new °solve logic.
+            const result = message.result as BealeCipherSolution;
+            return (
+                 <div className="beale-cipher-solution-view message-bubble">
+                     <h3>{result.title}</h3>
+                     <p>{result.summary}</p>
+                     {/* Abridged for brevity */}
+                 </div>
+            );
         default:
             return <div className="message-bubble">{renderTextWithInteractions(message.text)}</div>;
     }

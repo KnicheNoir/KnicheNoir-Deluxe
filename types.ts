@@ -42,6 +42,7 @@ export interface LetterformAnalysis {
     archetypalWords: Record<string, string>;
     networkCentrality: number;
     semanticField: string[];
+    publicArchetype: string;
 }
 
 /** The result of a structural analysis query, containing the analysis for multiple letters from the index. */
@@ -427,21 +428,21 @@ export interface LiberPrimusSolution {
     };
 }
 
-// FIX: Add TengriSolution and DecodedGlyphSection types to resolve import errors.
-export interface DecodedGlyphSection {
-    sectionTitle: string;
-    entryTitle: string;
-    primaryInterpretation: string;
-    resonanceAnalysis: {
-        theme: string;
-        value: string;
+// FIX: Replaced TengriSolution with BealeCipherSolution to correct the puzzle data.
+export interface BealeCipherSolution {
+    title: string;
+    summary: string;
+    keyDocument: {
+        name: string;
+        author: string;
+        year: number;
+    };
+    decryptionProcess: string;
+    decodedMessage: string;
+    astrianResonance: {
+        title: string;
         explanation: string;
-    }[];
-}
-
-export interface TengriSolution {
-    overallSummary: string;
-    decodedSections: DecodedGlyphSection[];
+    };
 }
 
 export interface VeracityEntry {
@@ -462,6 +463,7 @@ export interface VoynichAnalysisResult {
         glyphId: string;
         hebrewMapping: string;
         justification: string;
+        publicArchetype?: string;
     }[];
     decryptionSample: {
         original: string;
@@ -654,8 +656,7 @@ export interface ComponentMessage extends BaseSessionRecord {
 export interface AIMessage extends BaseSessionRecord {
     type: 'ai';
     text: string;
-    // FIX: Added 'voynich_translation' to the list of valid analysis types to resolve the TypeScript error.
-    analysisType: 'chat' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'general' | 'awe' | 'apocryphal' | 'cartography' | 'palmistry' | 'voice' | 'day_planner' | 'musical_composition' | 'compass_cipher' | 'liber_primus_solution' | 'resonance_potential' | 'gevurah_engine' | 'tengri_solution' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation';
+    analysisType: 'chat' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'general' | 'awe' | 'apocryphal' | 'cartography' | 'palmistry' | 'voice' | 'day_planner' | 'musical_composition' | 'compass_cipher' | 'liber_primus_solution' | 'resonance_potential' | 'gevurah_engine' | 'beale_cipher_solution' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation';
     result?: any;
 }
 export interface PalmistryAIMessage extends AIMessage {

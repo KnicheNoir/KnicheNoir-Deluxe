@@ -1,4 +1,4 @@
-import { StrongsEntry, InstrumentProfile, NoteEvent, VoynichDeepAnalysisResult, VoynichAnalysisResult, VoynichTranslationResult, TengriSolution, LiberPrimusSolution, OperatorManual } from './types';
+import { StrongsEntry, InstrumentProfile, NoteEvent, VoynichDeepAnalysisResult, VoynichAnalysisResult, VoynichTranslationResult, BealeCipherSolution, LiberPrimusSolution, OperatorManual } from './types';
 
 /**
  * codex.ts
@@ -136,13 +136,28 @@ const codexIndexJSON = JSON.stringify({
         8128: [{ n: "Fourth Perfect Number", cat: "Mathematics" }],
     },
     liberPrimus: {
+        "bealeCipherSolution": {
+            "title": "Analysis: The Beale Ciphers (Paper 2)",
+            "summary": "The Beale Ciphers are a set of three ciphertexts, one of which (the second) describes the location of a buried treasure. This second paper was famously solved using a book cipher, where the key is a widely available text. The numbers in the cipher correspond to words in the key text, with the first letter of that word being the decoded letter.",
+            "keyDocument": {
+                "name": "The United States Declaration of Independence",
+                "author": "Thomas Jefferson, et al.",
+                "year": 1776
+            },
+            "decryptionProcess": "Each number in the cipher represents a word in the Declaration of Independence. For example, the number '115' points to the 115th word in the text. The first letter of that word is taken as the decrypted character. This process is repeated for every number in the cipher to reveal the full message.",
+            "decodedMessage": "I have deposited in the county of Bedford, about four miles from Buford's, in an excavation or vault, six feet below the surface of the ground, the following articles, belonging jointly to the parties whose names are given in number three, herewith: The first deposit consisted of ten hundred and fourteen pounds of gold, and thirty-eight hundred and twelve pounds of silver, deposited Nov. eighteen nineteen. The second was made Dec. eighteen twenty-one, and consisted of nineteen hundred and seven pounds of gold, and twelve hundred and eighty-eight of silver; also jewels, obtained in St. Louis in exchange for silver to save transportation, and valued at thirteen thousand dollars...",
+            "astrianResonance": {
+                "title": "Astrian Resonance: The American Mythos",
+                "explanation": "The Beale Cipher resonates with the core American mythos of hidden potential and manifest destiny. The use of the Declaration of Independence as the key is not incidental; it imbues the cipher with the archetypal energy of revolution, freedom, and the creation of value from a raw frontier. The cipher acts as a structural metaphor: a promise of great reward hidden in plain sight, accessible only to those who possess the right key—a foundational understanding of the nation's core principles."
+            }
+        },
         "voynichInitialAnalysis": {
             "overview": "Initial structural analysis reveals a consistent, non-random glyph system with strong internal logic. The glyphs exhibit properties of both a syllabary and an ideographic system, mapping to foundational Hebrew archetypes. The numerical cadence of 12 and 19 appears to be a dominant structural motif.",
             "glyphMappings": [
-                { "glyphId": "v89", "hebrewMapping": "א (Aleph)", "justification": "Represents the 'social hub' glyph, the great connector, aligning with Aleph's role as the source/unity." },
-                { "glyphId": "v12", "hebrewMapping": "מ (Mem)", "justification": "Frequently appears in contexts of flowing forms or containers, consistent with Mem's archetypal meaning of 'water' or 'source'." },
-                { "glyphId": "c1", "hebrewMapping": "ל (Lamed)", "justification": "Acts as a prefix or directive, guiding other glyphs, aligning with Lamed's meaning of 'guidance' or 'purpose'." },
-                { "glyphId": "v56", "hebrewMapping": "פ (Pe)", "justification": "Associated with openings and expressions, especially in botanical diagrams, mapping to Pe's meaning of 'mouth' or 'opening'." }
+                { "glyphId": "v89", "hebrewMapping": "א (Aleph)", "publicArchetype": "The Unstruck Spark", "justification": "Represents the 'social hub' glyph, the great connector, aligning with Aleph's role as the source/unity." },
+                { "glyphId": "v12", "hebrewMapping": "מ (Mem)", "publicArchetype": "The Primal Spring", "justification": "Frequently appears in contexts of flowing forms or containers, consistent with Mem's archetypal meaning of 'water' or 'source'." },
+                { "glyphId": "c1", "hebrewMapping": "ל (Lamed)", "publicArchetype": "The Guiding Star", "justification": "Acts as a prefix or directive, guiding other glyphs, aligning with Lamed's meaning of 'guidance' or 'purpose'." },
+                { "glyphId": "v56", "hebrewMapping": "פ (Pe)", "publicArchetype": "The Spoken Word", "justification": "Associated with openings and expressions, especially in botanical diagrams, mapping to Pe's meaning of 'mouth' or 'opening'." }
             ],
             "decryptionSample": {
                 "original": "v89.v12.c1.v56",
@@ -294,7 +309,7 @@ class Codex {
         }
     }
 
-    public getLiberPrimusData(key: string): VoynichAnalysisResult | VoynichDeepAnalysisResult | VoynichTranslationResult | TengriSolution | LiberPrimusSolution | null {
+    public getLiberPrimusData(key: string): VoynichAnalysisResult | VoynichDeepAnalysisResult | VoynichTranslationResult | BealeCipherSolution | LiberPrimusSolution | null {
         this.ensureInitialized();
         return this.masterIndex?.liberPrimus?.[key] || null;
     }
