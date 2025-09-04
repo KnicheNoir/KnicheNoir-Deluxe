@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { codex } from './codex';
-// FIX: Imported the missing 'LetterformAnalysis' type to resolve the TypeScript error.
-import { CascadeCorrespondence, AWEFormData, EntrainmentProfile, ELSResult, ExhaustiveResonanceResult, StrongsEntry, GematriaAnalysis, DeepELSAnalysisResult, GuidingIntent, SessionRecord, UserMessage, AIMessage, SystemMessage, ComponentMessage, NetworkPatternResult, MusicalComposition, NoteEvent, AIProductionNotes, InstrumentProfile, ResonancePotentialMapResult, CompassCipherResult, LetterformAnalysis } from './types';
+// FIX: Removed unused 'NetworkPatternResult' which was causing an import error.
+import { CascadeCorrespondence, AWEFormData, EntrainmentProfile, ELSResult, ExhaustiveResonanceResult, StrongsEntry, GematriaAnalysis, DeepELSAnalysisResult, GuidingIntent, SessionRecord, UserMessage, AIMessage, SystemMessage, ComponentMessage, MusicalComposition, NoteEvent, AIProductionNotes, InstrumentProfile, ResonancePotentialMapResult, CompassCipherResult, LetterformAnalysis } from './types';
 import { hebraicCartographerSchema, hellenisticCartographerSchema, apocryphalAnalysisSchema, aweSynthesisSchema, palmistryAnalysisSchema, astrianDayPlannerSchema, voiceResonanceAnalysisSchema, deepElsAnalysisSchema, meditationScriptSchema, aiProductionNotesSchema, instructionalCompositionAnalysisSchema, chakraThemeSchema } from './constants';
 import { LibraryService } from './library';
 import { hebrewNetwork } from './dataModels';
@@ -296,8 +296,6 @@ export class VocalService {
 }
 
 
-// FIX: Added the missing AstrianEngine class to provide core application logic
-// and resolve import errors in hooks.ts and library.ts.
 // =================================================================================================
 // --- ASTRIAN ENGINE (CORE LOGIC) ---
 // =================================================================================================
@@ -417,11 +415,8 @@ export class GeminiService {
                 case 'ai': 
                     const aiMsg = r as AIMessage;
                     content = `AI: ${aiMsg.text}`;
-                    // FIX: This logic snippets the result of complex analyses for the AI's context.
-                    // The previous condition was too broad and caused a crash on simple chat messages,
-                    // as their `result` property is undefined. `JSON.stringify(undefined)` returns
-                    // `undefined`, leading to an error when calling `.substring()`. This more specific
-                    // check ensures we only try to snippet non-chat messages that have a result.
+                    // Snippet the result of complex analyses for the AI's context.
+                    // This prevents crashes on simple chat messages where `result` is undefined.
                     if (aiMsg.analysisType && aiMsg.analysisType !== 'chat' && aiMsg.result) {
                         const resultSnippet = JSON.stringify(aiMsg.result, (key, value) => 
                             typeof value === 'string' && value.length > 50 ? value.substring(0,50)+'...' : value,
@@ -471,8 +466,6 @@ export class GeminiService {
         }
     }
 
-    // FIX: Added missing GeminiService methods (generate, generateTextOnly, generateImages)
-    // to resolve multiple 'does not exist on type' errors in hooks.ts.
     public static async generate<T>(
         prompt: string,
         responseSchema: any,
@@ -505,6 +498,58 @@ export class GeminiService {
                 }
             },
             `generation with schema for prompt: "${prompt.substring(0, 50)}..."`
+        );
+    }
+
+    public static async generateImageToText<T>(
+        prompt: string,
+        imageDataUrl: string,
+        responseSchema: any,
+        history?: SessionRecord[],
+        intent?: GuidingIntent
+    ): Promise<T> {
+        const finalPrompt = this.buildFinalPrompt(prompt, history, intent);
+        const [meta, base64Data] = imageDataUrl.split(',');
+
+        if (!meta || !base64Data) {
+            throw new Error("Invalid image data URL format.");
+        }
+        const mimeType = meta.split(';')[0].split(':')[1];
+
+        const imagePart = {
+            inlineData: {
+                mimeType,
+                data: base64Data,
+            },
+        };
+
+        const textPart = { text: finalPrompt };
+
+        return this._executeRequest(
+             async (client) => {
+                const result = await client.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: { parts: [imagePart, textPart] },
+                     config: {
+                        responseMimeType: 'application/json',
+                        responseSchema: responseSchema,
+                    },
+                });
+                return result;
+            },
+            (response: GenerateContentResponse) => {
+                const jsonText = response.text?.trim() ?? '';
+                 if (!jsonText) {
+                    throw new Error("The model returned an empty response from the image.");
+                }
+                try {
+                    return JSON.parse(jsonText) as T;
+                } catch (e) {
+                    console.error("Failed to parse JSON response from image:", jsonText);
+                    throw new Error("The model returned malformed JSON from the image.");
+                }
+            },
+            `image-to-text generation for prompt: "${prompt.substring(0, 50)}..."`
         );
     }
 

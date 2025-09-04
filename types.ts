@@ -1,5 +1,3 @@
-import { GenerateContentResponse } from "@google/genai";
-
 /**
  * types.ts
  *
@@ -7,6 +5,42 @@ import { GenerateContentResponse } from "@google/genai";
  * This file provides a single source of truth for all data structures,
  * promoting consistency and ease of maintenance.
  */
+
+// =================================================================================================
+// --- CORE SESSION & MESSAGING TYPES (REPAIRED) ---
+// These foundational types were being imported across the app but were missing from this file.
+// Their inclusion repairs a critical structural issue.
+// =================================================================================================
+
+export interface SessionRecord {
+    id: string;
+    timestamp: Date;
+    type: 'user' | 'ai' | 'system' | 'component';
+}
+
+export interface UserMessage extends SessionRecord {
+    type: 'user';
+    text: string;
+}
+
+export interface AIMessage extends SessionRecord {
+    type: 'ai';
+    text: string;
+    analysisType: 'chat' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation' | 'beale_cipher_solution' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'palmistry' | 'voice' | 'cicada_3301_solution';
+    result?: any;
+    isFavorite?: boolean;
+}
+
+export interface SystemMessage extends SessionRecord {
+    type: 'system';
+    text: string;
+}
+
+export interface ComponentMessage extends SessionRecord {
+    type: 'component';
+    component: React.ReactNode;
+}
+
 
 // =================================================================================================
 // --- NEW CORE UI TYPES ---
@@ -23,250 +57,38 @@ export interface CallSign {
     color: 'primary' | 'secondary';
 }
 
-
-// =================================================================================================
-// --- CORE ANALYSIS TYPES ---
-// =================================================================================================
-
-/** The complete, pre-computed structural analysis of a single Hebrew letter, as defined in the Letterform Index. */
-export interface LetterformAnalysis {
-    letter: string;
-    name: string;
-    spelling: string;
-    gematria: number;
-    shape: 'open' | 'closed' | 'vertical';
-    constituentAnalysis: {
-        letter: string;
-        functionalRole: string;
-    }[];
-    archetypalWords: Record<string, string>;
-    networkCentrality: number;
-    semanticField: string[];
-    publicArchetype: string;
-}
-
-/** The result of a structural analysis query, containing the analysis for multiple letters from the index. */
-export interface StructuralAnalysisResult {
-    query: string;
-    analysis: LetterformAnalysis[];
-}
-
-/** The output of the Quantum Resonance Engine's observation. */
-export interface ResonancePotentialMapResult {
-    query: string;
-    primaryInterpretation: string;
-    structuralHubs: { letter: string; name: string; centrality: number }[];
-    entangledConcepts: string[];
-}
-
-
-/** Represents a full Gematria analysis for a word. */
-export interface GematriaAnalysis {
-    word: string;
-    englishMeaning: string;
-    transliteration: string;
-    standard: number;
-    ordinal: number;
-    reduced: number;
-    kolel: number;
-    atbashWord: string;
-    atbashValue: number;
-    milui: number;
-}
-
-/** Represents a found Equidistant Letter Sequence (ELS). */
-export interface ELSResult {
-    word: string;
-    englishMeaning?: string;
-    transliteration?: string;
-    direction: string;
-    skip: number;
-    verses?: string;
-    path: { row: number, col: number }[];
-    // FIX: Added optional numericalSignificance property to match usage in components and services.
-    numericalSignificance?: string;
-}
-
-/** The complete result of a deep ELS analysis, including the character grid. */
-export interface DeepELSAnalysisResult {
-    textGrid: { text: string; explanation: string; };
-    elsAnalysis: ELSResult[];
-}
-
-/** An entry from Strong's Concordance. */
-export interface StrongsEntry {
-    originalWord: string;
-    transliteration: string;
-    definition: string;
-    synonyms?: string[];
-}
-
-/** A single correspondence in a Resonance Cascade. */
-export interface CascadeCorrespondence {
-    domain: string;
-    correspondence: string;
-    explanation: string;
-}
-
-/** The full result of an Exhaustive Resonance Check, including the cascade. */
-export interface ExhaustiveResonanceResult {
-    query: string;
-    gematriaValue: number;
-    resonanceCascade: CascadeCorrespondence[];
-}
-
-/** A generic, high-level analysis result. */
-export interface GeneralAnalysisResult {
-    title: string;
-    summary: string;
-    sections: { title: string; content: string; }[];
-}
-
-/** A generic section with a title and explanation, used across many analysis results. */
-export interface ExplanatorySection {
-    title: string;
-    explanation: string;
-}
-
-/** Result of comparing two texts for harmonic resonance. */
-export interface HarmonicResonanceResult {
-    source1: { reference: string; gematria: number; };
-    source2: { reference: string; gematria: number; };
-    ratio: string;
-    analysis: string;
-}
-
-/** Generic result for pattern analysis (placeholders). */
-export interface NetworkPatternResult {
-    pattern: string;
-    significance: number;
-}
-export interface MelodyPatternResult {
-    motif: string;
-    recurrence: number;
-}
-
-/** The result of an apocryphal analysis. */
-export interface ApocryphalAnalysisResult {
-    analysisTitle: string;
-    coreConcept: ExplanatorySection;
-    angelicResonance: ExplanatorySection;
-    cosmologicalImplication: ExplanatorySection;
-    elsSynthesis: ExplanatorySection;
-}
-
-/** The result of a Hebraic textual cartography analysis. */
-export interface HebraicCartographerAnalysisResult {
-    // Structure based on hebraicCartographerSchema
-    query: string;
-    hebrewText: string;
-    transliteration: string;
-    englishTranslation: string;
-    gematriaAnalysis: any[]; // simplified for brevity
-    hebraicKeysOfMastery: { title: string; generatedText: string; };
-    //... other fields from base schema
-}
-
-/** The result of a Hellenistic textual cartography analysis. */
-export interface HellenisticCartographerAnalysisResult {
-    // Structure based on hellenisticCartographerSchema
-    query: string;
-    greekText: string;
-    transliteration: string;
-    englishTranslation: string;
-    isopsephyAnalysis: any[]; // simplified for brevity
-    gnosticSynthesis: ExplanatorySection;
-    //... other fields from base schema
-}
-
-/** A union type for any cartographer result. */
-export type CartographerAnalysisResults = HebraicCartographerAnalysisResult | HellenisticCartographerAnalysisResult;
-
-/** The result of an Attunement analysis. */
-export interface AttunementResult {
-    emotion: string;
-    musicalMode: { name: string; emotion: string };
-    derivedLetters: { letter: string; name: string }[];
-    scryedWords: { word: string; meaning: string }[];
-}
-
-/** The result of a Compass Cipher operation. */
-export interface CompassCipherResult {
-    mode: 'encode' | 'decode';
-    offset: number;
-    inputText: string;
-    outputText: string;
-}
-
-
-// =================================================================================================
-// --- MUSICAL & COMPOSITION TYPES ---
-// =================================================================================================
-
-/** Represents a single musical note event in a track. */
-export interface NoteEvent {
-    pitch: number;      // MIDI pitch value (e.g., 60 for Middle C)
-    frequency: number;  // Frequency in Hz
-    startTime: number;  // Start time in seconds from the beginning of the composition
-    duration: number;   // Duration in seconds
-    velocity: number;   // Note velocity (0.0 to 1.0)
-}
-
-/** Represents a single track of music within a composition. */
-export interface MusicalTrack {
-    name: 'melody' | 'harmony' | 'bass' | 'rhythm';
-    analysis: StructuralAnalysisResult;
-    notes: NoteEvent[];
-}
-
-/** Represents a full musical composition generated from a text. */
-export interface MusicalComposition {
+/** Represents a user-created tool or widget in the Home view. */
+export interface CustomTool {
     id: string;
-    isFavorite: boolean;
-    audioUrl?: string;
-    metadata: {
-        key: string;
-        mode: string;
-        bpm: number;
-        sourceReference: string;
-        genre?: string;
-        frequencySet?: string;
-        solfeggioFrequency?: number;
-    };
-    tracks: MusicalTrack[];
-}
-
-/** The ADSR (Attack, Decay, Sustain, Release) envelope for a synthesized sound. */
-export interface ADSRProfile {
-    attack: number;
-    decay: number;
-    sustain: number;
-    release: number;
-}
-
-/** Defines the properties of a virtual instrument. */
-export interface InstrumentProfile {
     name: string;
-    waveform: 'sine' | 'square' | 'sawtooth' | 'triangle';
-    adsr: ADSRProfile;
-    description: string;
-    structuralAffinity?: {
-        resonantLetters?: string[];
-        gematriaRange?: [number, number];
-        letterforms?: ('open' | 'closed' | 'vertical')[];
-    }
+    icon: string; // For simplicity, we'll use emoji or a specific string key for an icon set
+    purpose: string;
 }
-// FIX: Added all missing types that were causing import errors across the application.
-// =================================================================================================
-// --- NEWLY ADDED & EXPORTED TYPES ---
-// =================================================================================================
 
+/** Represents the state of a widget in the Home view's dynamic dashboard. */
+export interface WidgetState {
+    id: string;
+    type: 'creator' | 'notepad';
+    position: { x: number; y: number };
+    size: { width: number; height: number };
+    content?: string; // For notepad
+}
+
+/** Defines the types of toast notifications. */
 export interface Toast {
     id: string;
     message: string;
     type: 'info' | 'success' | 'error';
 }
 
+// =================================================================================================
+// --- ASTRIAN KEY SPECIFIC DATA & SESSION TYPES ---
+// =================================================================================================
+
+/** Defines the possible intents behind a user query. */
+export type GuidingIntent = 'Neutral' | 'Analytical' | 'Creative' | 'Divinatory';
+
+/** The structure for AWE (Astrian Weighted Embodiment) data. */
 export interface AWEFormData {
     fullNameAtBirth: string;
     currentNameUsed: string;
@@ -281,82 +103,167 @@ export interface AWEFormData {
     visualCipherConcepts: string[];
 }
 
+/** The structure for an entrainment session profile. */
 export interface EntrainmentProfile {
     name: string;
     description: string;
-    type: 'binaural';
+    type: 'binaural' | 'isochronic';
     baseFrequency: number;
     targetFrequency: number;
 }
 
-export type GuidingIntent = 'Neutral' | 'Analytical' | 'Creative' | 'Divinatory';
-
-export interface VisualChallenge {
-    images: {
-        url: string;
-        prompt: string;
-    }[];
-}
-
-export interface InstructionalCompositionSession {
-    stop: () => void;
-    analyserNode: AnalyserNode;
-    audioUrl: string;
-    coreEmotion?: string;
-    symbolicMantra?: string;
-    title?: string;
-}
-
+/** Defines an active entrainment session with a stop function. */
 export interface ActiveEntrainmentSession {
     profile: EntrainmentProfile;
     stop: () => void;
 }
 
-export interface MusicComposerOptions {
+/** Structure for the visual challenge in session unlocking. */
+export interface VisualChallenge {
     prompt: string;
-    key: string;
-    mode: string;
-    instrumentProfiles: {
-        melody: InstrumentProfile;
-        harmony: InstrumentProfile;
-        bass: InstrumentProfile;
+    images: string[]; // URLs or base64 strings
+    correctIndices: number[];
+}
+
+// =================================================================================================
+// --- ANALYSIS & COMPOSITION RESULT TYPES ---
+// =================================================================================================
+
+/** Represents a single finding during an active solve session. */
+export interface SolveFinding {
+    id: string;
+    timestamp: Date;
+    type: 'Pattern' | 'Resonance' | 'ELS' | 'Synthesis' | 'Query';
+    content: string;
+    confidence: number;
+}
+
+/** Structure for an active solve session. */
+export interface ActiveSolveSession {
+    isActive: boolean;
+    target: string;
+    startTime: Date;
+    findings: SolveFinding[];
+}
+
+/** Structure for a single entry in an ELS analysis. */
+export interface ELSResult {
+    word: string;
+    englishMeaning: string;
+    transliteration: string;
+    direction: string;
+    skip: number;
+    verses: string;
+    path: { row: number; col: number }[];
+}
+
+/** Structure for a deep ELS analysis result. */
+export interface DeepELSAnalysisResult {
+    textGrid: {
+        text: string;
+        explanation: string;
     };
+    elsAnalysis: ELSResult[];
 }
 
-export interface GevurahOperand {
-    type: 'register' | 'memory' | 'literal' | 'path';
-    value?: string | number;
-    address?: string;
-    path?: string[];
-}
-
-export interface GevurahInstruction {
-    letter: string;
-    opcode: string;
-    operands: GevurahOperand[];
+/** A single correspondence found in a resonance analysis. */
+export interface CascadeCorrespondence {
+    domain: string;
+    correspondence: string;
     explanation: string;
 }
 
-export interface GevurahEngineProgram {
-    title: string;
-    description: string;
-    registers: Record<string, number>;
-    memory: Record<string, number>;
-    instructions: GevurahInstruction[];
+/** The full result of an exhaustive resonance analysis. */
+export interface ExhaustiveResonanceResult {
+    query: string;
+    gematriaValue: number;
+    resonanceCascade: CascadeCorrespondence[];
 }
 
-export interface WhitepaperSection {
-    title: string;
-    content: string | { subtitle: string; text: string }[];
+export interface GematriaAnalysis {
+    word: string;
+    englishMeaning: string;
+    transliteration: string;
+    standard: number;
+    ordinal: number;
+    reduced: number;
+    kolel: number;
+    atbashWord: string;
+    atbashValue: number;
+    milui: number;
 }
 
-export interface Whitepaper {
-    title: string;
-    subtitle: string;
-    abstract: string;
-    sections: WhitepaperSection[];
+/** The result of a palmistry analysis from an image. */
+export interface PalmistryAnalysisResult {
+    analysisTitle: string;
+    overallReading: { title: string; explanation: string };
+    lifeLine: { title: string; explanation: string };
+    headLine: { title: string; explanation: string };
+    heartLine: { title: string; explanation: string };
+    fateLine?: { title: string; explanation: string };
+    majorMounts: { title: string; explanation: string };
 }
 
+/** The result of a voice resonance analysis. */
+export interface VoiceResonanceAnalysisResult {
+    analysisTitle: string;
+    coreVibrationalTone: { title: string; explanation: string };
+    prosodicFlow: { title: string; explanation: string };
+    expressivePower: { title: string; explanation: string };
+}
+
+/** An entry in a Strong's Concordance lookup. */
+export interface StrongsEntry {
+    number: number;
+    lemma: string;
+    transliteration: string;
+    pronunciation: string;
+    definition: string;
+}
+
+/** A single note event in a musical composition. */
+export interface NoteEvent {
+    pitch: number;
+    frequency: number;
+    startTime: number;
+    duration: number;
+    velocity: number;
+}
+
+/** A track within a musical composition. */
+export interface MusicalTrack {
+    name: 'melody' | 'harmony' | 'bass' | 'rhythm';
+    analysis: {
+        query: string;
+        analysis: any[]; // Placeholder for future analysis data
+    };
+    notes: NoteEvent[];
+}
+
+/** A complete musical composition. */
+export interface MusicalComposition {
+    id: string;
+    isFavorite: boolean;
+    metadata: {
+        key: string;
+        mode: string;
+        bpm: number;
+        sourceReference: string;
+        genre?: string;
+        solfeggioFrequency?: number;
+    };
+    tracks: MusicalTrack[];
+}
+
+/** An active instructional composition session. */
+export interface InstructionalCompositionSession {
+    composition: MusicalComposition;
+    stop: () => void;
+    analyserNode: AnalyserNode;
+    audioUrl: string;
+}
+
+/** AI-generated production notes for a composition. */
 export interface AIProductionNotes {
     overallMood: string;
     instruments: {
@@ -369,44 +276,56 @@ export interface AIProductionNotes {
     mastering: string;
 }
 
-export type View = 'calibration' | 'chat' | 'meditation' | 'unlock' | 'instructional' | 'entrainment';
-
-export interface AWEAnalysisResult {
-    guidingQuestion: string;
-    temporalMatrix: ExplanatorySection;
-    karmicDharmicLedger: ExplanatorySection;
-    collectiveNoosphere: ExplanatorySection;
-    alchemicalBridge: ExplanatorySection;
-    shortestRouteToInternalMastery: ExplanatorySection;
-    entrainmentExplanation: string;
+/** Profile for a synthesized instrument. */
+export interface InstrumentProfile {
+    name: string;
+    waveform: 'sine' | 'square' | 'sawtooth' | 'triangle';
+    adsr: {
+        attack: number;
+        decay: number;
+        sustain: number;
+        release: number;
+    };
+    description: string;
+    structuralAffinity: {
+        gematriaRange?: [number, number];
+        letterforms?: string[];
+        resonantLetters?: string[];
+    };
 }
 
-export interface PalmistryAnalysisResult {
-    analysisTitle: string;
-    overallReading: ExplanatorySection;
-    lifeLine: ExplanatorySection;
-    headLine: ExplanatorySection;
-    heartLine: ExplanatorySection;
-    fateLine?: ExplanatorySection;
-    majorMounts: ExplanatorySection;
-}
-
-export interface VoiceResonanceAnalysisResult {
-    analysisTitle: string;
-    coreVibrationalTone: ExplanatorySection;
-    prosodicFlow: ExplanatorySection;
-    expressivePower: ExplanatorySection;
-}
-
-export interface AstrianDayPlannerResult {
-    planTitle: string;
-    overview: string;
-    schedule: {
-        timeRange: string;
-        activity: string;
-        esotericAdvice: string;
-        elementalAlignment: string;
+export interface ResonancePotentialMapResult {
+    query: string;
+    primaryInterpretation: string;
+    structuralHubs: {
+        letter: string;
+        name: string;
+        centrality: number | undefined;
     }[];
+    entangledConcepts: string[];
+}
+
+export interface CompassCipherResult {
+    mode: 'encode' | 'decode';
+    offset: number;
+    inputText: string;
+    outputText: string;
+}
+
+export interface LetterformAnalysis {
+    letter: string;
+    name: string;
+    spelling: string;
+    gematria: number;
+    shape: 'open' | 'closed' | 'vertical';
+    publicArchetype: string;
+    constituentAnalysis: {
+        letter: string;
+        functionalRole: string;
+    }[];
+    archetypalWords: Record<string, string>;
+    networkCentrality: number;
+    semanticField: string[];
 }
 
 export interface MeditationResult {
@@ -415,20 +334,113 @@ export interface MeditationResult {
     imagePrompts: string[];
 }
 
-export interface LiberPrimusSolution {
-    query: string;
-    solutionPath: string[];
-    decryptedConstant: string;
-    verificationProof: string;
-    summary: string;
-    logicalJustification?: string;
-    biochemicalMapping?: {
-        aminoAcids: { glyph: string; name: string; abbreviation: string; }[];
-        catalysts: { glyph: string; name: string; role: string; }[];
+export interface VeracityEntry {
+    finding: string;
+    crossReference: string;
+    explanation: string;
+}
+
+export interface GlyphStateEntry {
+    timestamp: string;
+    stateDescription: string;
+    details: string;
+}
+
+export interface OperatorProtocol {
+    title: string;
+    purpose: string;
+    principles: {
+        name: string;
+        description: string;
+    }[];
+}
+
+export interface OperatorManual {
+    protocols: OperatorProtocol[];
+}
+
+export interface VoynichAnalysisResult {
+    overview: string;
+    glyphMappings: {
+        glyphId: string;
+        hebrewMapping: string;
+        publicArchetype: string;
+        justification: string;
+    }[];
+    decryptionSample: {
+        original: string;
+        decrypted: string;
     };
 }
 
-// FIX: Replaced TengriSolution with BealeCipherSolution to correct the puzzle data.
+export interface VoynichDeepAnalysisResult {
+    isCanonized: boolean;
+    folioReference: string;
+    overview: string;
+    inversionAnalysis: {
+        title: string;
+        solarCadence: string;
+        lunarCadence: string;
+    };
+    glyphNetworkAnalysis: {
+        title: string;
+        coOccurrenceClusters: {
+            clusterName: string;
+            glyphs: string[];
+            interpretation: string;
+        };
+    };
+    hebraicKeyAnalysis: {
+        title: string;
+        keys: {
+            name: string;
+            glyphs: string[];
+            interpretation: string;
+        }[];
+    };
+    operationalModes: {
+        title: string;
+        explanation: string;
+        modes: {
+            name: string;
+            numerology: string;
+            description: string;
+        }[];
+        synthesis: string;
+    };
+    shadowAlphabetAnalysis: any;
+    astrianAnalysis: {
+        title: string;
+        shadowGlyphFunction: string;
+        willowDominion: string;
+        israelKeyMapping: string;
+        rhythmicHeartbeat: {
+            countOfSeven: number;
+            fibonacciResonance: string;
+            keyOfEight: string;
+        };
+    };
+    emergentSynthesis: {
+        title: string;
+        theory: string;
+    };
+    veracityData: VeracityEntry[];
+    glyphStateLog: GlyphStateEntry[];
+}
+
+export interface VoynichTranslationResult {
+    entries: {
+        folio: string;
+        theme: string;
+        hebrew: string;
+        english: string;
+        notes: {
+            term: string;
+            explanation: string;
+        }[];
+    }[];
+}
+
 export interface BealeCipherSolution {
     title: string;
     summary: string;
@@ -445,236 +457,25 @@ export interface BealeCipherSolution {
     };
 }
 
-export interface VeracityEntry {
-    finding: string;
-    crossReference: string;
-    explanation: string;
+export interface LiberPrimusSolution {
+    // Define if a specific structure is needed
+    [key: string]: any;
 }
 
-export interface GlyphStateEntry {
-    timestamp: string;
-    stateDescription: string;
-    details: string;
-}
-
-export interface VoynichAnalysisResult {
+export interface Cicada3301Solution {
+    title: string;
     overview: string;
-    glyphMappings: {
-        glyphId: string;
-        hebrewMapping: string;
-        justification: string;
-        publicArchetype?: string;
-    }[];
-    decryptionSample: {
-        original: string;
-        decrypted: string;
-    };
-    veracityData?: VeracityEntry[];
-}
-
-export interface MacroScaleCorrelation {
-    title: string;
-    glyphId: string;
-    hebrewMapping: string;
-    phenomenon: string;
-    interpretation: string;
-}
-
-export interface ShadowAlphabetAnalysis {
-    title: string;
-    explanation: string;
-    unmappedLetters: {
-        letter: string;
-        name: string;
-        gematria: number;
-        willowPlacement: string;
-    }[];
-    gematriaSum: {
-        value: number;
-        interpretation: string;
-    };
-    wordSynthesis: {
+    koan: {
         title: string;
-        synthesis: string;
-    };
-}
-
-
-export interface VoynichDeepAnalysisResult {
-    folioReference: string;
-    overview: string;
-    isCanonized?: boolean;
-    historicalContext?: {
-        title: string;
-        date: string;
-        location: string;
-        coordinates: string;
-        linguisticMilieu: string;
-    };
-    inversionAnalysis?: {
-        title: string;
-        solarCadence: string;
-        lunarCadence: string;
-    };
-    foundationalTriad?: {
-        title: string;
-        atomicResonance: string;
-        scripturalResonance: string;
-    };
-    glyphNetworkAnalysis?: {
-        title: string;
-        commonNGrams: { sequence: string; interpretation: string; }[];
-        mutualExclusion: { pair: string[]; rule: string; };
-        sociability: { glyph: string; role: string; explanation: string; }[];
-        coOccurrenceClusters?: { clusterName: string; glyphs: string[]; interpretation: string; };
-    };
-    willowMapping?: {
-        title: string;
-        pathOfGrowth: {
-            glyphs: string[];
-            hebrewLetters: string[];
-            interpretation: string;
-            tribalResonance: string;
-        };
-        caduceusPattern: {
-            motherLetters: string[];
-            interpretation: string;
-        };
-    };
-    hebraicKeyAnalysis?: {
-        title: string;
-        keys: {
+        parts: {
             name: string;
-            glyphs: string[];
-            interpretation: string;
+            explanation: string;
         }[];
     };
-    operationalModes?: {
+    liberPrimusExample: {
         title: string;
-        explanation: string;
-        modes: {
-            name: string;
-            numerology: string;
-            description: string;
-        }[];
-        synthesis: string;
+        runes: string;
+        exotericReading: string;
+        atbashInversion: string;
     };
-    shadowAlphabetAnalysis?: ShadowAlphabetAnalysis;
-    glyphStatistics?: {
-        title: string;
-        totalUnique: number;
-        revealed: number;
-        sleeping: number;
-    };
-    crossCorpusResonance?: {
-        title: string;
-        comparisons: {
-            text: string;
-            likelihood: string;
-            reasoning: string;
-        }[];
-    };
-    astrianAnalysis?: {
-        title: string;
-        shadowGlyphFunction: string;
-        willowDominion: string;
-        israelKeyMapping: string;
-        rhythmicHeartbeat: {
-            countOfSeven: number;
-            fibonacciResonance: string;
-            keyOfEight: string;
-        }
-    };
-    emergentSynthesis?: {
-        title: string;
-        theory: string;
-        points: string[];
-    };
-    veracityData?: VeracityEntry[];
-    glyphStateLog?: GlyphStateEntry[];
 }
-
-export interface VoynichTranslationEntry {
-    folio: string;
-    theme: string;
-    translation: string;
-    notes: {
-        term: string;
-        explanation: string;
-    }[];
-}
-
-export interface VoynichTranslationResult {
-    entries: VoynichTranslationEntry[];
-}
-
-
-export interface SolveFinding {
-    id: string;
-    timestamp: Date;
-    type: 'Pattern' | 'Resonance' | 'ELS' | 'Synthesis' | 'Query';
-    content: string;
-    confidence: number;
-}
-
-export interface ActiveSolveSession {
-    target: string;
-    startTime: Date;
-    findings: SolveFinding[];
-    isActive: boolean;
-}
-
-export interface ProtocolPrinciple {
-    name: string;
-    description: string;
-}
-
-export interface OperatorProtocol {
-    title: string;
-    purpose: string;
-    principles: ProtocolPrinciple[];
-}
-
-export interface OperatorManual {
-    protocols: OperatorProtocol[];
-}
-
-
-// Session History Types
-interface BaseSessionRecord {
-    id: string;
-    timestamp: Date;
-}
-export interface UserMessage extends BaseSessionRecord { type: 'user'; text: string; }
-export interface SystemMessage extends BaseSessionRecord { type: 'system'; text: string; }
-export interface ComponentMessage extends BaseSessionRecord {
-    type: 'component';
-    component: 'music_composer' | 'entrainment_selection' | 'whitepaper_initiation' | 'whitepaper_view' | 'voynich_diagram' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation';
-    props: any;
-}
-
-export interface AIMessage extends BaseSessionRecord {
-    type: 'ai';
-    text: string;
-    analysisType: 'chat' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'general' | 'awe' | 'apocryphal' | 'cartography' | 'palmistry' | 'voice' | 'day_planner' | 'musical_composition' | 'compass_cipher' | 'liber_primus_solution' | 'resonance_potential' | 'gevurah_engine' | 'beale_cipher_solution' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation';
-    result?: any;
-}
-export interface PalmistryAIMessage extends AIMessage {
-    analysisType: 'palmistry';
-    result: PalmistryAnalysisResult;
-}
-export interface VoiceAIMessage extends AIMessage {
-    analysisType: 'voice';
-    result: VoiceResonanceAnalysisResult;
-}
-export interface MusicalCompositionAIMessage extends AIMessage {
-    analysisType: 'musical_composition';
-    result: MusicalComposition;
-}
-export interface LiberPrimusAIMessage extends AIMessage {
-    analysisType: 'liber_primus_solution';
-    result: LiberPrimusSolution;
-}
-
-
-export type SessionRecord = UserMessage | SystemMessage | AIMessage | ComponentMessage;

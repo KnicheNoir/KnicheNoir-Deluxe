@@ -96,6 +96,13 @@ export class HebrewAlphabetNetwork {
         return this.archetypalWordCache;
     }
 
+    public getRandomArchetype(): LetterformAnalysis | undefined {
+        if (!this.isInitialized) return undefined;
+        const alphabet = Object.keys(this.letterformIndex);
+        const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+        return this.letterformIndex[randomLetter];
+    }
+
     private getLetterGematria(letter: string): number {
         const analysis = this.getLetterformAnalysis(letter);
         return analysis?.gematria || 0;

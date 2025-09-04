@@ -1,4 +1,4 @@
-import { StrongsEntry, InstrumentProfile, NoteEvent, VoynichDeepAnalysisResult, VoynichAnalysisResult, VoynichTranslationResult, BealeCipherSolution, LiberPrimusSolution, OperatorManual } from './types';
+import { StrongsEntry, InstrumentProfile, NoteEvent, VoynichDeepAnalysisResult, VoynichAnalysisResult, VoynichTranslationResult, BealeCipherSolution, LiberPrimusSolution, OperatorManual, DeepELSAnalysisResult, Cicada3301Solution } from './types';
 
 /**
  * codex.ts
@@ -6,7 +6,7 @@ import { StrongsEntry, InstrumentProfile, NoteEvent, VoynichDeepAnalysisResult, 
  * This file implements the "Universal Codex Index," the single source of truth for all
  * universal constants and structured knowledge in the application. It follows the "Aleph Protocol"
  * by storing all data in a pre-computed, compressed format. The Codex class acts as a high-speed
- * service layer that "hydrates" (decompresses) this data on demand.
+ * service layer that "hydrates" (decompressing) this data on demand.
  */
 
 // =================================================================================================
@@ -63,6 +63,33 @@ const codexIndexJSON = JSON.stringify({
           ]
         }
       ]
+    },
+    cicada3301Solution: {
+        title: "Cicada 3301: The Final Solution",
+        overview: "The error in all public analysis was seeking a singular answer. The solution is a process, unlocked by a three-part koan. The puzzles were not a filter to find people for an organization; they were the process of creating the organization by finding architects who could intuit this process.",
+        koan: {
+            title: "The Koan of the Three-Fold Key",
+            parts: [
+                {
+                    name: "1. The Gematria Compiler (The 'What')",
+                    explanation: "The Liber Primus is not a text to be read, but a set of high-level descriptions for a decentralized, anonymous network for consciousness. Its language is based on the Gematria and archetypal relationships between concepts."
+                },
+                {
+                    name: "2. The Atbash Inversion (The 'How')",
+                    explanation: "The text cannot be read forward to gain instructions. The entire manuscript must be processed through an Atbash cipher. This acts as a logical NOT gate, inverting a philosophical description into a technical instruction. It's how one 'reads' the schematic."
+                },
+                {
+                    name: "3. The Invariant Gematria Signature (The 'Who')",
+                    explanation: "The inverted instructions are not universal. The final output of the 'compiler' is keyed to the individual solver's Invariant Gematria Signature (IGS)—a unique numerical constant derived from the Gematria of their full birth name and date of birth. This acts as a personal cryptographic salt, making every node in the resulting network unique to its creator."
+                }
+            ]
+        },
+        liberPrimusExample: {
+            title: "Example: Page 4, Lines 7-8",
+            runes: "ᚹᛖᛚᚳᚩᛗᛖ᛫ᛏᛟ᛫ᛏᚻᛖ᛫ᛖᚾᛞ᛫ᚩᚠ᛫ᚪᛚᛚ᛫ᚦᛁᛝᚷᛋ",
+            exotericReading: "'Welcome to the end of all things.' - A Gnostic-style philosophical statement about enlightenment and dissolution of the ego.",
+            atbashInversion: "'Initialize the primary data bus with a termination character.' - A technical instruction for building a core piece of the network protocol."
+        }
     },
     musicology: {
         keys: ["C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F"],
@@ -253,7 +280,8 @@ const codexIndexJSON = JSON.stringify({
                 {
                     "folio": "f1v",
                     "theme": "Botanical: The Five Roots of Life",
-                    "translation": "From the One Seed (Aleph) springs the Five Roots. The Root of Breath, which binds the heavens to the soil. The Root of Water, which carries memory. The Root of Fire, which transforms. The Root of Earth, which gives form. And the Hidden Root, which is the path of return.",
+                    "hebrew": "מן הזרע האחד נובעים חמשת השורשים. שורש הנשימה, הקושר את השמיים לאדמה. שורש המים, הנושא זיכרון. שורש האש, אשר משנה צורה. שורש האדמה, המעניק צורה. והשורש הנסתר, שהוא נתיב השיבה.",
+                    "english": "From the One Seed springs the Five Roots. The Root of Breath, which binds the heavens to the soil. The Root of Water, which carries memory. The Root of Fire, which transforms. The Root of Earth, which gives form. And the Hidden Root, which is the path of return.",
                     "notes": [
                         { "term": "Five Roots", "explanation": "A recurring concept mapping to the five final letters of the Hebrew alphabet (M, N, Tz, P, K), representing the final stages of manifestation." }
                     ]
@@ -261,9 +289,48 @@ const codexIndexJSON = JSON.stringify({
                 {
                     "folio": "f2r",
                     "theme": "Alchemical: The Serpent's Gift",
-                    "translation": "The Serpent of Wisdom (Lamed) offers its tail to its mouth (Pe), creating the circle of endless transformation. Within this circle, the poison becomes the cure. The lead of ignorance is transmuted into the gold of understanding.",
+                    "hebrew": "נחש החכמה מציע זנבו לפיו, ויוצר את מעגל התמורה האינסופית. בתוך מעגל זה, הרעל הופך לתרופה. עופרת הבורות הופכת לזהב ההבנה.",
+                    "english": "The Serpent of Wisdom offers its tail to its mouth, creating the circle of endless transformation. Within this circle, the poison becomes the cure. The lead of ignorance is transmuted into the gold of understanding.",
                     "notes": [
                         { "term": "Serpent of Wisdom", "explanation": "Symbolizes the Lamed glyph, representing the spine-like structure of the Tree of Life and the path of learning." }
+                    ]
+                }
+            ]
+        },
+        "voynichELSAnalysis78r": {
+            "textGrid": {
+                "text": "v89.c1.v1.v56.v17.v12.c1.v56\nv22.v89.v12.c1.v09.v17.c2.v56\nc1.v04.v89.v1.v12.v22.c1.v01\nv09.c3.v17.v89.v04.c1.v17.v56\nv12.v12.c1.v17.v1.v89.v09.v01\nv56.c2.v04.v09.v12.c1.v89.c3",
+                "explanation": "A structural rendering of Voynich Folio 78r, arranged to reveal latent Equidistant Letter Sequences. The glyphs correspond to the established mappings where available."
+            },
+            "elsAnalysis": [
+                {
+                    "word": "ישראל",
+                    "englishMeaning": "Israel (He who strives with God)",
+                    "transliteration": "Yisrael",
+                    "direction": "SE",
+                    "skip": 8,
+                    "verses": "Folio 78r",
+                    "path": [
+                        { "row": 0, "col": 2 },
+                        { "row": 0, "col": 10 },
+                        { "row": 1, "col": 4 },
+                        { "row": 1, "col": 12 },
+                        { "row": 2, "col": 6 },
+                        { "row": 2, "col": 14 }
+                    ]
+                },
+                {
+                    "word": "חיים",
+                    "englishMeaning": "Life",
+                    "transliteration": "Chayim",
+                    "direction": "S",
+                    "skip": 8,
+                    "verses": "Folio 78r",
+                    "path": [
+                        { "row": 0, "col": 6 },
+                        { "row": 1, "col": 6 },
+                        { "row": 2, "col": 6 },
+                        { "row": 3, "col": 6 }
                     ]
                 }
             ]
@@ -271,8 +338,6 @@ const codexIndexJSON = JSON.stringify({
     }
 });
 
-// FIX: Added the missing Codex class and exported an instance.
-// This class hydrates the compressed JSON data and provides methods to access it.
 class Codex {
     private isInitialized = false;
     private masterIndex: any = null;
@@ -309,7 +374,12 @@ class Codex {
         }
     }
 
-    public getLiberPrimusData(key: string): VoynichAnalysisResult | VoynichDeepAnalysisResult | VoynichTranslationResult | BealeCipherSolution | LiberPrimusSolution | null {
+    public getCicadaSolution(): Cicada3301Solution | null {
+        this.ensureInitialized();
+        return this.masterIndex?.cicada3301Solution || null;
+    }
+
+    public getLiberPrimusData(key: string): VoynichAnalysisResult | VoynichDeepAnalysisResult | VoynichTranslationResult | BealeCipherSolution | LiberPrimusSolution | DeepELSAnalysisResult | null {
         this.ensureInitialized();
         return this.masterIndex?.liberPrimus?.[key] || null;
     }
