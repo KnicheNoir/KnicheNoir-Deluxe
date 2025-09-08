@@ -1,9 +1,10 @@
+
 import React, { FC, useState, memo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useAstrianSystem, useUserInterface } from './hooks';
 import {
-    ChatView, KaleidoscopicBackground, SubliminalGlyph, SessionUnlockView, MeditationView, 
-    AyinGuide, StelaCalibrationView, InstructionalCompositionView, EntrainmentView, EmergentCTA,
+    TimelineView, KaleidoscopicBackground, SubliminalGlyph, SessionUnlockView, MeditationView, 
+    CommandGuide, StelaCalibrationView, InstructionalCompositionView, EntrainmentView, EmergentCTA,
     AstrianInterface,
     BootAnimationView,
     HomeView,
@@ -19,10 +20,13 @@ import { AIMessage } from './types';
 // =================================================================================================
 
 interface CallSignContentViewProps {
-    system: any; // A more specific type would be better, but for now, this works
+    system: any; 
     input: string;
     setInput: (value: string) => void;
     handleSend: () => void;
+    homeInput: string;
+    setHomeInput: (value: string) => void;
+    handleHomeSend: () => void;
     onCommandSelect: (command: string) => void;
     onDirectCommand: (command: string) => void;
 }
@@ -33,23 +37,21 @@ interface CallSignContentViewProps {
  * which is a major performance optimization. It now acts as a router for the active view.
  */
 const CallSignContentView: FC<CallSignContentViewProps> = memo((props) => {
-    const { system, input, setInput, handleSend, onCommandSelect, onDirectCommand } = props;
+    const { system, input, setInput, handleSend, homeInput, setHomeInput, handleHomeSend, onCommandSelect, onDirectCommand } = props;
     
-    const chatProps = {
+    const timelineProps = {
         history: system.sessionHistory,
         error: system.error,
         onRetry: system.handleRetry,
-        onNumberInteract: system.handleNumberInteract,
         input: input,
         onInputChange: setInput,
         onSend: handleSend,
-        onSpeak: system.speakText,
-        isVoiceEnabled: system.ayinVoiceEnabled,
         isListening: system.isListening,
         onStartListening: system.startVoiceInput,
-        onToggleFavorite: system.toggleFavoriteComposition,
         bookmarks: system.bookmarks,
         onToggleBookmark: system.toggleBookmark,
+        isVoiceEnabled: system.ayinVoiceEnabled,
+        onNumberInteract: system.handleNumberInteract,
     };
 
     const guideProps = {
@@ -64,6 +66,13 @@ const CallSignContentView: FC<CallSignContentViewProps> = memo((props) => {
     // Render specialized views based on the unified soBelowState from the reducer
     switch (system.soBelowState.view) {
         case 'home':
+            const homeTimelineProps = {
+                ...timelineProps, // Inherit common props
+                history: system.homeSessionHistory,
+                input: homeInput,
+                onInputChange: setHomeInput,
+                onSend: handleHomeSend,
+            };
             return <HomeView 
                         customTools={system.customTools} 
                         widgets={system.widgets}
@@ -71,11 +80,12 @@ const CallSignContentView: FC<CallSignContentViewProps> = memo((props) => {
                         handleSaveTool={system.handleSaveTool}
                         addToast={system.addToast}
                         onDirectCommand={onDirectCommand}
+                        homeTimelineProps={homeTimelineProps}
                     />;
         case 'library':
-             return <LibraryView chatProps={chatProps} guideProps={guideProps} addToast={system.addToast} onDirectCommand={onDirectCommand} />;
+             return <LibraryView chatProps={timelineProps} guideProps={guideProps} addToast={system.addToast} onDirectCommand={onDirectCommand} />;
         case 'oracle':
-             return <OracleView chatProps={chatProps} guideProps={guideProps} addToast={system.addToast} onDirectCommand={onDirectCommand} />;
+             return <OracleView chatProps={timelineProps} guideProps={guideProps} addToast={system.addToast} onDirectCommand={onDirectCommand} />;
         case 'instructional':
             return <InstructionalCompositionView session={system.soBelowState.sessionData} onStop={() => system.dispatchSoBelow({ type: 'STOP_SESSION' })} />;
         case 'entrainment':
@@ -93,8 +103,8 @@ const CallSignContentView: FC<CallSignContentViewProps> = memo((props) => {
 
             return (
                 <div className="app-content-wrapper">
-                     <ChatView {...chatProps} />
-                     <AyinGuide {...guideProps} />
+                     <TimelineView {...timelineProps} />
+                     <CommandGuide {...guideProps} onCommandSelect={onCommandSelect} />
                      <EmergentCTA onTrigger={system.handleSendMessage} lastMessage={lastMessage as AIMessage | null} />
                      <SubliminalGlyph seed={system.resonanceSeed} />
                 </div>
@@ -114,12 +124,18 @@ const App: FC = () => {
     // UI presentation state and interaction logic
     const ui = useUserInterface(system.addMessage, system.activeSolveSession.isActive, system.isCorporaInitialized, system.dispatchSoBelow);
     
-    // State for the main chat input, managed at the top level
+    // State for the main chat input and the sandboxed home input
     const [input, setInput] = useState('');
+    const [homeInput, setHomeInput] = useState('');
 
     const handleCommandSelect = (command: string) => {
         const commandWithSpace = command.endsWith(' ') ? command : command + ' ';
         setInput(prev => prev ? `${prev} ${commandWithSpace}` : commandWithSpace);
+    };
+    
+    const handleCallSignInplaceQuery = (callSignName: string) => {
+        setInput(prev => `${prev} @${callSignName} `);
+        ui.setIsCallSignMenuOpen(false); // Close menu after selection
     };
 
     const handleDirectCommand = (command: string) => {
@@ -132,17 +148,15 @@ const App: FC = () => {
 
     const handleSend = () => {
         if (input.trim()) {
-            // If the user sends a message from the globe, switch them to the chat view
-            // unless they are initiating a new solve session or going home.
-            if (ui.viewMode === 'globe' && !input.toLowerCase().trim().startsWith('°solve') && !input.toLowerCase().trim().includes('home')) {
-                ui.setViewMode('callSign');
-            }
-            // If we are in a call sign sandbox, sending a message should not change the view
-            if (system.soBelowState.view !== 'home' && system.soBelowState.view !== 'library' && system.soBelowState.view !== 'oracle') {
-                 system.dispatchSoBelow({ type: 'STOP_SESSION' });
-            }
             system.handleSendMessage(input);
             setInput('');
+        }
+    };
+
+    const handleHomeSend = () => {
+        if (homeInput.trim()) {
+            system.handleHomeSendMessage(homeInput);
+            setHomeInput('');
         }
     };
     
@@ -173,16 +187,20 @@ const App: FC = () => {
                 {...system}
                 {...ui}
                 isSolveActive={isSolveActive}
-                onCommandSelect={handleCommandSelect}
+                // FIX: Removed extraneous 'onCommandSelect' prop that is not defined on AstrianInterface.
                 onDirectCommand={handleDirectCommand}
                 handleScreenshot={system.handleScreenshot}
                 handleDownloadArchive={system.handleDownloadArchive}
+                handleCallSignInplaceQuery={handleCallSignInplaceQuery}
             >
                 <CallSignContentView 
                     system={system} 
                     input={input} 
                     setInput={setInput} 
                     handleSend={handleSend}
+                    homeInput={homeInput}
+                    setHomeInput={setHomeInput}
+                    handleHomeSend={handleHomeSend}
                     onCommandSelect={handleCommandSelect}
                     onDirectCommand={handleDirectCommand}
                 />

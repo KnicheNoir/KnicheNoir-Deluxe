@@ -26,7 +26,8 @@ export interface UserMessage extends SessionRecord {
 export interface AIMessage extends SessionRecord {
     type: 'ai';
     text: string;
-    analysisType: 'chat' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation' | 'beale_cipher_solution' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'palmistry' | 'voice' | 'cicada_3301_solution';
+    // FIX: Added 'instructional' to the analysisType to support bookmarking of instructional compositions.
+    analysisType: 'chat' | 'voynich_analysis' | 'voynich_deep_analysis' | 'voynich_translation' | 'beale_cipher_solution' | 'gematria' | 'els' | 'deep_els' | 'resonance' | 'palmistry' | 'voice' | 'cicada_3301_solution' | 'beale_treasure_map' | 'scried_image' | 'chronovised_video' | 'instructional';
     result?: any;
     isFavorite?: boolean;
 }
@@ -441,19 +442,71 @@ export interface VoynichTranslationResult {
     }[];
 }
 
+interface BealeCipherPaper {
+    title: string;
+    keyDocumentName: string;
+    decryptionProcess: string;
+    decodedMessage: string;
+    keyDocumentAuthor?: string;
+    keyDocumentYear?: number;
+}
+
 export interface BealeCipherSolution {
     title: string;
     summary: string;
-    keyDocument: {
-        name: string;
-        author: string;
-        year: number;
+    papers: {
+        paper1: BealeCipherPaper;
+        paper2: BealeCipherPaper;
+        paper3: BealeCipherPaper;
     };
-    decryptionProcess: string;
-    decodedMessage: string;
     astrianResonance: {
         title: string;
         explanation: string;
+    };
+}
+
+export interface HydrologicalPointOfInterest {
+    name: string;
+    historicalSignificance: string;
+    probability: number; // 0 to 1
+}
+
+export interface MasonicTriangulationResult {
+    numericalSymbolism: string;
+    triangulationPoint: string;
+    derivedCoordinates: { lat: number; lon: number };
+    explanation: string;
+}
+
+export interface TextualCorrelationResult {
+    textualCadence: string;
+    topographicalMatch: string;
+    pathDescription: string;
+}
+
+export interface BealeTreasureMapAnalysis {
+    title: string;
+    overview: string;
+    hydrologicalResonanceMapping: {
+        title: string;
+        explanation: string;
+        pointsOfInterest: HydrologicalPointOfInterest[];
+    };
+    masonicNumericalTriangulation: {
+        title: string;
+        explanation: string;
+        result: MasonicTriangulationResult;
+    };
+    textualTopographicalCorrelation: {
+        title: string;
+        explanation: string;
+        result: TextualCorrelationResult;
+    };
+    synthesis: {
+        title: string;
+        explanation: string;
+        refinedSearchArea: string;
+        finalCoordinates: { lat: number; lon: number };
     };
 }
 
@@ -478,4 +531,14 @@ export interface Cicada3301Solution {
         exotericReading: string;
         atbashInversion: string;
     };
+}
+
+export interface ScriedImageResult {
+    prompt: string;
+    imageData: string; // base64 string
+}
+
+export interface ChronovisedVideoResult {
+    prompt: string;
+    videoUrl: string; // blob URL
 }

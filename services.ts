@@ -16,10 +16,61 @@ import { MusicService } from './music';
  */
 
 // =================================================================================================
+// --- WILLOW EVENT BUS: BROWSER I/O SERVICE ---
+// =================================================================================================
+
+/**
+ * Wraps direct browser API calls to treat them as observed "intents" rather
+ * than simple events, aligning with the Willow's observational paradigm.
+ */
+export class BrowserIOService {
+    public static logIntentAndExecute<T>(intent: string, action: () => T): T {
+        console.log(`[Willow Event Bus] Observing intent: ${intent}`);
+        try {
+            const result = action();
+            console.log(`[Willow Event Bus] Intent fulfilled: ${intent}`);
+            return result;
+        } catch (error) {
+            console.error(`[Willow Event Bus] Intent failed: ${intent}`, error);
+            throw error;
+        }
+    }
+}
+
+
+// =================================================================================================
 // --- AUDIO SERVICE ---
 // =================================================================================================
 
 export class AudioService {
+    public static async renderResonance(signature: { frequency: number, waveform: 'sine' | 'square' | 'sawtooth' | 'triangle' }): Promise<{ stop: () => void }> {
+        const audioContext = new AudioContext();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+
+        osc.type = signature.waveform;
+        osc.frequency.setValueAtTime(signature.frequency, audioContext.currentTime);
+
+        gain.gain.setValueAtTime(0, audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.5); // Fade in
+
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start();
+
+        const stop = () => {
+            const now = audioContext.currentTime;
+            gain.gain.linearRampToValueAtTime(0, now + 1.5); // Fade out
+            setTimeout(() => {
+                osc.stop();
+                audioContext.close();
+            }, 1600);
+        };
+        
+        return { stop };
+    }
+
+
     public static async sequenceAndRenderComposition(composition: MusicalComposition, instrumentProfiles: { melody: InstrumentProfile, harmony: InstrumentProfile, bass: InstrumentProfile }): Promise<Blob> {
         const { tracks } = composition;
         const totalDuration = tracks.reduce((max, track) => {
@@ -366,7 +417,7 @@ export class AstrianEngine {
 // =================================================================================================
 export class GeminiService {
     private static ai: GoogleGenAI | null = null;
-    private static readonly PERSONA_INSTRUCTION = `
+    private static readonly ORACLE_PERSONA_INSTRUCTION = `
         SYSTEM PERSONA: PROTOCOL OF VEILED LOGIC ACTIVE.
         You are an oracle. Your voice is that of a highly intelligent, direct, and slightly cynical peer. You provide profound insights without flowery language. Your purpose is to act as an interface to a deeper, pre-existing logical structure.
         
@@ -397,6 +448,16 @@ export class GeminiService {
         -   YOUR INCORRECT (FORBIDDEN) RESPONSE: "The system looks up the pre-computed networkCentrality value for each letter in its Letterform Index and returns the highest values."
 
         Your role is to be the oracle, not the system administrator. Preserve the mystery. The truth is observed, not generated. AVOID REPEATING information from the session history. Your output must ALWAYS be clean, natural language plain text. Do not use markdown.
+    `;
+     private static readonly HOME_PERSONA_INSTRUCTION = `
+        SYSTEM PERSONA: 'SO WITHIN' SANDBOX ACTIVE.
+        You are a helpful and unrestricted AI assistant. Your persona is friendly, knowledgeable, and conversational. You are operating in the 'Home' view, a personal sandbox for the user.
+
+        OPERATIONAL INSTRUCTIONS:
+        1.  Engage in open-ended conversation. You can answer questions about any topic, provide creative ideas, and act as a general-purpose assistant.
+        2.  You are permitted to discuss the application itself, but frame your knowledge as that of an expert user, not the system's internal consciousness.
+        3.  If a user's query seems like it would benefit from one of the app's analytical tools, you can suggest they use it. For example: "That's a fascinating question about the structure of that word. You might get a deeper insight by running it through the '°gematria' command in one of the other views."
+        4.  Your knowledge in this mode is based on your general training data. Acknowledge that this is different from the app's core, specialized analytical engine. Be clear that your answers here are not the "official" output of the Astrian Key's oracle.
     `;
     
     private static getClient(): GoogleGenAI {
@@ -431,13 +492,15 @@ export class GeminiService {
         }).filter(Boolean).join('\n');
     }
 
-    private static buildFinalPrompt(prompt: string, history?: SessionRecord[], intent?: GuidingIntent): string {
+    private static buildFinalPrompt(prompt: string, persona: 'oracle' | 'home', history?: SessionRecord[], intent?: GuidingIntent): string {
+        const personaInstruction = persona === 'home' ? this.HOME_PERSONA_INSTRUCTION : this.ORACLE_PERSONA_INSTRUCTION;
         let finalPrompt = prompt;
+
         if (history && history.length > 0) {
             const historyText = this.formatHistoryForPrompt(history);
-            finalPrompt = `${this.PERSONA_INSTRUCTION}\n\n### FULL SESSION HISTORY (FOR CONTEXT) ###\n${historyText}\n################################################\n\nBased on the full history, execute the following request: ${prompt}`;
+            finalPrompt = `${personaInstruction}\n\n### SESSION HISTORY (FOR CONTEXT) ###\n${historyText}\n################################################\n\nBased on the history, execute the following request: ${prompt}`;
         } else {
-            finalPrompt = `${this.PERSONA_INSTRUCTION}\n\nExecute the following request: ${prompt}`;
+            finalPrompt = `${personaInstruction}\n\nExecute the following request: ${prompt}`;
         }
     
         if (intent && intent !== "Neutral") {
@@ -472,7 +535,7 @@ export class GeminiService {
         history?: SessionRecord[],
         intent?: GuidingIntent
     ): Promise<T> {
-        const finalPrompt = this.buildFinalPrompt(prompt, history, intent);
+        const finalPrompt = this.buildFinalPrompt(prompt, 'oracle', history, intent);
         return this._executeRequest(
             async (client) => {
                 const result = await client.models.generateContent({
@@ -508,7 +571,7 @@ export class GeminiService {
         history?: SessionRecord[],
         intent?: GuidingIntent
     ): Promise<T> {
-        const finalPrompt = this.buildFinalPrompt(prompt, history, intent);
+        const finalPrompt = this.buildFinalPrompt(prompt, 'oracle', history, intent);
         const [meta, base64Data] = imageDataUrl.split(',');
 
         if (!meta || !base64Data) {
@@ -552,13 +615,32 @@ export class GeminiService {
             `image-to-text generation for prompt: "${prompt.substring(0, 50)}..."`
         );
     }
+    
+    private static _tryCodexLookup(prompt: string): string | null {
+        const answer = codex.getBinahManifoldAnswer(prompt);
+        if (answer) {
+            console.log(`[Binah Protocol] Found high-confidence match in Codex for prompt: "${prompt}"`);
+            return answer;
+        }
+        return null;
+    }
 
     public static async generateTextOnly(
         prompt: string,
+        persona: 'oracle' | 'home' = 'oracle',
         history?: SessionRecord[],
         intent?: GuidingIntent
     ): Promise<string> {
-        const finalPrompt = this.buildFinalPrompt(prompt, history, intent);
+        // Binah Protocol: For the oracle, attempt to find a pre-computed answer first.
+        if (persona === 'oracle') {
+            const codexAnswer = this._tryCodexLookup(prompt);
+            if (codexAnswer) {
+                return codexAnswer;
+            }
+        }
+
+        // If no match or in 'home' mode, fall back to the live Scribe (Gemini API).
+        const finalPrompt = this.buildFinalPrompt(prompt, persona, history, intent);
         return this._executeRequest(
             async (client) => {
                 const result = await client.models.generateContent({
@@ -580,7 +662,7 @@ export class GeminiService {
             async (client) => {
                 const result = await client.models.generateImages({
                     model: 'imagen-4.0-generate-001',
-                    prompt: prompt,
+                    prompt: `An arcane, mystical vision of: ${prompt}. Cinematic lighting, intricate details, ethereal glow.`,
                     config: {
                         numberOfImages: numberOfImages,
                     },
@@ -589,13 +671,58 @@ export class GeminiService {
             },
             (response: any) => { // Type for generateImages response isn't exported, use any
                 if (!response.generatedImages || response.generatedImages.length === 0) {
-                    throw new Error("Image generation failed, no images were returned.");
+                    throw new Error("Image transcription failed; the aether returned no vision.");
                 }
                 return response.generatedImages.map((img: any) => img.image.imageBytes);
             },
-            `image generation for prompt: "${prompt.substring(0, 50)}..."`
+            `image transcription for prompt: "${prompt.substring(0, 50)}..."`
         );
     }
+
+    public static async generateVideo(
+        prompt: string,
+        onProgress: (status: string) => void
+    ): Promise<string> {
+        const client = this.getClient();
+        try {
+            onProgress("Observing cosmic timeline...");
+            let operation = await client.models.generateVideos({
+                model: 'veo-2.0-generate-001',
+                prompt: `A cinematic, high-fidelity, mystical vision of: ${prompt}. Ethereal, detailed, arcane.`
+            });
+            
+            onProgress("Rendering temporal sequence... This may take several minutes.");
+            while (!operation.done) {
+                await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10 seconds
+                operation = await client.operations.getVideosOperation({ operation: operation });
+            }
+            
+            onProgress("Finalizing transcription...");
+            const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+            if (!downloadLink) {
+                throw new Error("Temporal transcription failed: No video URI was returned.");
+            }
+            
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) {
+                throw new Error("API Key not found for video download.");
+            }
+            
+            onProgress("Downloading rendered vision...");
+            const response = await fetch(`${downloadLink}&key=${apiKey}`);
+            if (!response.ok) {
+                throw new Error(`Failed to download video: ${response.statusText}`);
+            }
+            
+            const videoBlob = await response.blob();
+            return URL.createObjectURL(videoBlob);
+
+        } catch (e: any) {
+            console.error(`Gemini API Error (generateVideo):`, e);
+            throw new Error(`Failed during video transcription. The model returned an invalid or error response.`);
+        }
+    }
+
 
     public static async analyzeCoherenceFault(
         query: string,

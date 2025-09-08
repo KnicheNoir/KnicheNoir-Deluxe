@@ -1,13 +1,15 @@
+
 import { useState, useCallback, useRef, useEffect, useMemo, useReducer } from 'react';
 import { GenerateContentResponse } from "@google/genai";
-import { SessionRecord, EntrainmentProfile, AWEFormData, GuidingIntent, Toast, UserMessage, AIMessage, SystemMessage, ComponentMessage, VisualChallenge, InstructionalCompositionSession, ActiveEntrainmentSession, BealeCipherSolution, VoynichAnalysisResult, ViewMode, ActiveSolveSession, SolveFinding, VoynichTranslationResult, CallSign, CustomTool, DeepELSAnalysisResult, WidgetState, PalmistryAnalysisResult, VoiceResonanceAnalysisResult, GematriaAnalysis } from './types';
-import { GeminiService, AstrianEngine, AudioService, VocalService } from './services';
+import { SessionRecord, EntrainmentProfile, AWEFormData, GuidingIntent, Toast, UserMessage, AIMessage, SystemMessage, ComponentMessage, VisualChallenge, InstructionalCompositionSession, ActiveEntrainmentSession, BealeCipherSolution, VoynichAnalysisResult, ViewMode, ActiveSolveSession, SolveFinding, VoynichTranslationResult, CallSign, CustomTool, DeepELSAnalysisResult, WidgetState, PalmistryAnalysisResult, VoiceResonanceAnalysisResult, GematriaAnalysis, BealeTreasureMapAnalysis, AIProductionNotes, ScriedImageResult, ChronovisedVideoResult, MeditationResult } from './types';
+import { GeminiService, AstrianEngine, AudioService, VocalService, BrowserIOService } from './services';
 import { hebraicCartographerSchema, hellenisticCartographerSchema, apocryphalAnalysisSchema, aweSynthesisSchema, palmistryAnalysisSchema, astrianDayPlannerSchema, voiceResonanceAnalysisSchema, deepElsAnalysisSchema, meditationScriptSchema, aiProductionNotesSchema, instructionalCompositionAnalysisSchema, chakraThemeSchema, solveFindingSchema } from './constants';
 import { LibraryService } from './library';
 import { hebrewNetwork } from './dataModels';
 import { codex } from './codex';
 import { CALL_SIGNS } from './components';
 import { toPng } from 'html-to-image';
+import { MusicService } from './music';
 
 const entrainmentProfiles: EntrainmentProfile[] = [
     { name: 'Hypnotic Induction (Alpha Wave)', description: 'A foundational state for focused relaxation and heightened suggestibility.', type: 'binaural', baseFrequency: 120, targetFrequency: 10 },
@@ -95,10 +97,85 @@ function soBelowReducer(state: SoBelowState, action: SoBelowAction): SoBelowStat
     }
 }
 
+// FIX: Add missing useUserInterface hook to manage UI state like view mode and modals.
+export const useUserInterface = (
+    addMessage: (message: AddMessageArg, historyType?: 'main' | 'home') => SessionRecord,
+    isSolveActive: boolean,
+    isCorporaInitialized: boolean,
+    dispatchSoBelow: React.Dispatch<SoBelowAction>
+) => {
+    const [viewMode, setViewMode] = useState<ViewMode>('boot');
+    const [transitionText, setTransitionText] = useState<string | null>(null);
+    
+    // Modal states
+    const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
+    const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+    const [isManualOpen, setIsManualOpen] = useState(false);
+    const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
+    const [isCallSignMenuOpen, setIsCallSignMenuOpen] = useState(false);
+    const [activeTool, setActiveTool] = useState<string | null>(null);
+
+    const navigateToHome = useCallback(() => {
+        if (isCorporaInitialized) {
+            setViewMode('globe');
+        }
+    }, [isCorporaInitialized]);
+    
+    const handleCompassClick = useCallback(() => {
+        setIsCallSignMenuOpen(true);
+    }, []);
+    
+    const handleCompassDoubleClick = useCallback(() => {
+        if (!isSolveActive) {
+            setViewMode(prev => (prev === 'globe' ? 'callSign' : 'globe'));
+        }
+    }, [isSolveActive]);
+    
+    const handleCallSignSelect = useCallback((callSign: CallSign) => {
+        setIsCallSignMenuOpen(false);
+        setTransitionText(`Connecting to ${callSign.name}...`);
+        // Use a timeout to allow the transition text to show
+        setTimeout(() => {
+            dispatchSoBelow({ type: 'SET_ACTIVE_CALL_SIGN', payload: callSign });
+            setViewMode('callSign');
+            setTransitionText(null);
+        }, 1000);
+    }, [dispatchSoBelow]);
+    
+    const handleBookmarkSelect = useCallback((bookmarkText: string) => {
+        setIsBookmarksOpen(false);
+        addMessage({type: 'system', text: `Revisiting bookmark: "${bookmarkText.substring(0, 50)}..."`});
+        // In a real app, you might want to re-run the query or show the full message.
+    }, [addMessage]);
+    
+    return {
+        viewMode,
+        setViewMode,
+        navigateToHome,
+        handleCompassClick,
+        handleCompassDoubleClick,
+        handleCallSignSelect,
+        handleBookmarkSelect,
+        isBookmarksOpen,
+        setIsBookmarksOpen,
+        isArchiveOpen,
+        setIsArchiveOpen,
+        isManualOpen,
+        setIsManualOpen,
+        isWhiteboardOpen,
+        setIsWhiteboardOpen,
+        isCallSignMenuOpen,
+        setIsCallSignMenuOpen,
+        transitionText,
+        activeTool,
+        setActiveTool
+    };
+};
 
 export const useAstrianSystem = () => {
     // --- Centralized State ---
     const [sessionHistory, setSessionHistory] = useState<SessionRecord[]>([]);
+    const [homeSessionHistory, setHomeSessionHistory] = useState<SessionRecord[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [guidingIntent, setGuidingIntent] = useState<GuidingIntent>('Neutral');
@@ -127,6 +204,7 @@ export const useAstrianSystem = () => {
     const [calibrationSubtext, setCalibrationSubtext] = useState('');
 
     // --- User Data State (now includes widgets) ---
+    // FIX: Added missing 'relationalNodeChallenging' property to initial state to match AWEFormData type.
     const [aweData, setAweData] = useState<AWEFormData>({ fullNameAtBirth: '', currentNameUsed: '', birthDate: '', birthTime: '', birthLocation: '', inflectionPoints: [], relationalNodeHarmonious: '', relationalNodeChallenging: '', geographicAnchor: '', centralQuestion: '', visualCipherConcepts: [] });
     const [customTools, setCustomTools] = useState<CustomTool[]>([]);
     const [widgets, setWidgets] = useState<WidgetState[]>([]);
@@ -135,6 +213,9 @@ export const useAstrianSystem = () => {
     const lastQueryRef = useRef<{ query: any, prompt: string, analysisType?: AIMessage['analysisType'] } | null>(null);
     const solveIntervalRef = useRef<number | null>(null);
     const analysisCallbackRef = useRef<(() => Promise<void>) | null>(null);
+    const activeResonanceRef = useRef<{ stop: () => void } | null>(null);
+    const suggestionTimeoutRef = useRef<number | null>(null);
+
 
     // --- Memos & Derived State ---
     const isAweComplete = useMemo(() => !!(aweData.fullNameAtBirth && aweData.birthDate && aweData.centralQuestion), [aweData]);
@@ -149,9 +230,13 @@ export const useAstrianSystem = () => {
     const [chakraTheme, setChakraTheme] = useState('neutral');
 
     // --- Core Action Callbacks ---
-    const addMessage = useCallback((message: AddMessageArg) => {
+    const addMessage = useCallback((message: AddMessageArg, historyType: 'main' | 'home' = 'main') => {
         const newMessage = { ...message, id: Date.now().toString(), timestamp: new Date() } as SessionRecord;
-        setSessionHistory(prev => [...prev, newMessage]);
+        if (historyType === 'home') {
+            setHomeSessionHistory(prev => [...prev, newMessage]);
+        } else {
+            setSessionHistory(prev => [...prev, newMessage]);
+        }
         return newMessage;
     }, []);
     
@@ -246,15 +331,15 @@ export const useAstrianSystem = () => {
                     content: `[ERROR] Analysis cycle encountered an anomaly. Re-calibrating analytical vector and retrying...`,
                     confidence: 0.2,
                 };
-                // FIX: Removed the spread operator '...' from errorFinding.
-                // It's a single object, not an array, so it should be appended directly.
                 setActiveSolveSession(prev => ({ ...prev, findings: [...prev.findings, errorFinding] }));
             }
         };
     }, [activeSolveSession, sessionHistory, stopSolveSession]);
 
-    const startSolveSession = useCallback((target: string) => {
+    const startSolveSession = useCallback((target: string, contextHistory?: SessionRecord[]) => {
         stopSolveSession(); 
+        
+        const historyForPrompt = contextHistory || sessionHistory;
 
         const initialFinding: SolveFinding = {
             id: `finding-${Date.now()}`, timestamp: new Date(), type: 'Query',
@@ -268,11 +353,20 @@ export const useAstrianSystem = () => {
         setTimeout(() => analysisCallbackRef.current?.(), 1000); // Start first cycle after 1 sec
         const intervalId = window.setInterval(() => { analysisCallbackRef.current?.(); }, 8000); 
         solveIntervalRef.current = intervalId;
-    }, [stopSolveSession, addMessage]);
+    }, [stopSolveSession, addMessage, sessionHistory]);
 
     // --- Other Handlers ---
     const handleUnlockSession = async (password: string) => { /* ... implementation ... */ };
-    const generateVisualChallenge = async () => { /* ... implementation ... */ };
+    const generateVisualChallenge = useCallback(async () => {
+        addMessage({ type: 'system', text: 'Generating new visual challenge...' });
+        const concepts = ['Unity', 'Duality', 'Connection', 'Structure', 'Life', 'Revelation', 'Spirit'];
+        const correctConcept = concepts[Math.floor(Math.random() * concepts.length)];
+        
+        addMessage({ type: 'system', text: 'Visual challenge generated. Identify the core concept.' });
+        dispatchSoBelow({ type: 'SET_CHALLENGE', payload: { challenge: { prompt: `Identify the image that best represents ${correctConcept}.`, images: [], correctIndices: [] } } });
+
+    }, [addMessage]);
+    
     const endTour = () => setIsTourActive(false);
     const speakText = (text: string) => VocalService.speak(text);
     const startVoiceInput = (callback: (text: string) => void) => {
@@ -282,27 +376,29 @@ export const useAstrianSystem = () => {
     const toggleFavoriteComposition = (id: string) => { /* ... implementation ... */ };
     
     const handleScreenshot = useCallback(async () => {
-        const element = document.getElementById('root');
-        if (!element) {
-            addToast('Error capturing screenshot: Root element not found.', 'error');
-            return;
-        }
-        try {
-            addToast('Capturing...');
-            const dataUrl = await toPng(element, { cacheBust: true });
-            const link = document.createElement('a');
-            link.download = `AstrianCapture-${new Date().toISOString().replace(/:/g, '-')}.png`;
-            link.href = dataUrl;
-            link.click();
-            link.remove();
-        } catch (err) {
-            console.error('Screenshot failed', err);
-            addToast('Screenshot failed.', 'error');
-        }
+        BrowserIOService.logIntentAndExecute('capture_screenshot', async () => {
+            const element = document.getElementById('root');
+            if (!element) {
+                addToast('Error capturing screenshot: Root element not found.', 'error');
+                return;
+            }
+            try {
+                addToast('Capturing...');
+                const dataUrl = await toPng(element, { cacheBust: true });
+                const link = document.createElement('a');
+                link.download = `AstrianCapture-${new Date().toISOString().replace(/:/g, '-')}.png`;
+                link.href = dataUrl;
+                link.click();
+                link.remove();
+            } catch (err) {
+                console.error('Screenshot failed', err);
+                addToast('Screenshot failed.', 'error');
+            }
+        });
     }, [addToast]);
     
     const handleDownloadArchive = useCallback(() => {
-        try {
+        BrowserIOService.logIntentAndExecute('persist_session_archive', () => {
             const dataToSave = {
                 sessionHistory,
                 bookmarks,
@@ -320,10 +416,7 @@ export const useAstrianSystem = () => {
             URL.revokeObjectURL(url);
             link.remove();
             addToast('Archive download initiated.', 'success');
-        } catch (err) {
-            console.error('Archive download failed', err);
-            addToast('Archive download failed.', 'error');
-        }
+        });
     }, [sessionHistory, bookmarks, customTools, aweData, addToast]);
 
     const handleOpenIngestView = () => addToast('Ingestion protocol not yet implemented.');
@@ -334,8 +427,27 @@ export const useAstrianSystem = () => {
         setTourStep(0);
     };
 
-    const handleNumberInteract = useCallback(async (num: number) => { /* ... implementation ... */ }, [addMessage, sessionHistory, guidingIntent]);
-    const handleSynthesizeConnections = useCallback(async (num: number) => { /* ... implementation ... */ }, [addMessage, sessionHistory, guidingIntent]);
+    const handleNumberInteract = useCallback(async (num: number) => {
+        setSynthesisResult(null);
+        setCrossRefValue(num);
+        setIsModalOpen(true);
+    }, []);
+
+    const handleSynthesizeConnections = useCallback(async (num: number) => {
+        setIsSynthesizing(true);
+        try {
+            const response = await GeminiService.generateTextOnly(
+                `The user has clicked on the number ${num} within a previous analysis. Provide a brief, insightful, esoteric synthesis connecting this number to related concepts within the Universal Codex. What does this number signify in gematria, alchemy, and sacred geometry?`,
+                'oracle', sessionHistory, guidingIntent
+            );
+            setSynthesisResult(response);
+        } catch (e: any) {
+            setSynthesisResult(`Synthesis failed: ${e.message}`);
+        } finally {
+            setIsSynthesizing(false);
+        }
+    }, [sessionHistory, guidingIntent]);
+    
     const handleRetry = useCallback(() => { /* ... implementation ... */ }, [addMessage, sessionHistory, guidingIntent]);
 
     const handlePalmImageCapture = useCallback(async (imageDataUrl: string) => {
@@ -389,34 +501,265 @@ export const useAstrianSystem = () => {
 
     const handlePlannerCommand = () => addToast('Planner not yet implemented.');
 
-
-    const handleSendMessage = useCallback(async (input: string) => {
-        if (!input.trim()) return;
+    const handleHomeSendMessage = useCallback(async (rawInput: string) => {
+        if (!rawInput.trim()) return;
+        
+        addMessage({ type: 'user', text: rawInput }, 'home');
+        setIsLoading(true);
         setError(null);
-        const userMessage = addMessage({ type: 'user', text: input });
+
+        try {
+            const lowerInput = rawInput.toLowerCase().trim();
+            if (lowerInput.startsWith('°solve')) {
+                const target = lowerInput.replace('°solve', '').trim();
+                if (target) {
+                    startSolveSession(target, homeSessionHistory);
+                } else {
+                    addMessage({ type: 'system', text: 'Please specify a target for the °solve protocol.' }, 'home');
+                }
+            } else {
+                const response = await GeminiService.generateTextOnly(rawInput, 'home', homeSessionHistory, guidingIntent);
+                addMessage({ type: 'ai', text: response, analysisType: 'chat' }, 'home');
+            }
+        } catch (e: any) {
+            addMessage({ type: 'system', text: `An error occurred: ${e.message}` }, 'home');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addMessage, homeSessionHistory, guidingIntent, startSolveSession]);
+
+    const handleSendMessage = useCallback(async (rawInput: string) => {
+        if (!rawInput.trim()) return;
+        
+        if (soBelowState.view === 'home') {
+            handleHomeSendMessage(rawInput);
+            return;
+        }
+
+        setError(null);
+
+        if (activeResonanceRef.current) {
+            activeResonanceRef.current.stop();
+            activeResonanceRef.current = null;
+        }
+        
+        let processedInput = rawInput.trim();
+        const lowerInput = processedInput.toLowerCase();
+
+        if (!lowerInput.startsWith('°')) {
+            if (/\b(music|compose|sonify|make a song)\b/.test(lowerInput)) {
+                const subject = lowerInput.replace(/\b(music|compose|sonify|make a song|based on|about|from)\b/g, '').trim();
+                processedInput = `°compose ${subject}`;
+            } else if (/\b(gematria|numerical value|number of|value for)\b/.test(lowerInput)) {
+                const subject = lowerInput.replace(/\b(gematria|numerical value|number of|value for|of|the|is|what's|whats)\b/g, '').trim();
+                processedInput = `°gematria ${subject}`;
+            } else if (/\b(scry|vision|show me|picture of)\b/.test(lowerInput)) {
+                const subject = lowerInput.replace(/\b(scry|vision|show me|a|of|picture of)\b/g, '').trim();
+                processedInput = `°scry ${subject}`;
+            } else if (/\b(chronovise|video|animate)\b/.test(lowerInput)) {
+                const subject = lowerInput.replace(/\b(chronovise|video|animate|a|of)\b/g, '').trim();
+                processedInput = `°chronovise ${subject}`;
+            } else if (/\b(draw an archetype|draw archetype)\b/.test(lowerInput)) {
+                processedInput = '°archetype_draw';
+            } else if (/\b(resonate|vibration|frequency of)\b/.test(lowerInput)) {
+                const subject = lowerInput.replace(/\b(resonate|vibration|frequency of|with|the)\b/g, '').trim();
+                processedInput = `°resonate ${subject}`;
+            }
+        }
+        
+        const userMessage = addMessage({ type: 'user', text: rawInput });
         setIsLoading(true);
 
-        const lowerInput = input.toLowerCase().trim();
+        const finalLowerInput = processedInput.toLowerCase();
 
-        if (activeSolveSession.isActive && !lowerInput.startsWith('°solve')) {
+        if (activeSolveSession.isActive && !finalLowerInput.startsWith('°solve')) {
             stopSolveSession();
         }
 
         try {
-             // Handle "Home" command for view switching and command passthrough
-            if (lowerInput.includes('home')) {
-                const commandPart = input.replace(/home/i, '').trim();
+            if (finalLowerInput.includes('home')) {
+                const commandPart = processedInput.replace(/home/i, '').trim();
                 dispatchSoBelow({ type: 'GO_HOME', payload: { command: commandPart } });
-                // Don't return here if there's more to the command
                 if (!commandPart) {
                     setIsLoading(false);
                     return;
                 }
             }
+            
+            if (finalLowerInput.startsWith('°lock')) {
+                addMessage({ type: 'system', text: 'Initiating session lock protocol.' });
+                await generateVisualChallenge();
+                setIsLoading(false);
+                return;
+            }
 
-            // --- Sandbox Tool Commands ---
-            if (lowerInput.startsWith('°gematria ')) {
-                const word = input.substring('°gematria '.length).trim();
+            if (finalLowerInput.startsWith('°entrain')) {
+                const profileName = processedInput.substring('°entrain'.length).trim();
+                const profile = entrainmentProfiles.find(p => p.name.toLowerCase().includes(profileName.toLowerCase())) || entrainmentProfiles[0];
+                addMessage({ type: 'system', text: `Initiating entrainment: ${profile.name}` });
+                const session = AudioService.startBinauralBeat(profile);
+                dispatchSoBelow({ type: 'START_ENTRAINMENT', payload: { profile, stop: session.stop } });
+                setIsLoading(false);
+                return;
+            }
+            
+            if (finalLowerInput.startsWith('°meditate')) {
+                addMessage({ type: 'system', text: `Transcribing meditation script from the aether...` });
+                const result = await GeminiService.generate<MeditationResult>(
+                    `Generate a short, calming guided meditation script based on the user's AWE data. The user's central question is "${aweData.centralQuestion}". Their harmonious relationship is with "${aweData.relationalNodeHarmonious}". A significant life event was "${aweData.inflectionPoints[0]?.description}". The script MUST contain exactly two image generation tokens like [GENERATE_IMAGE: a detailed, evocative prompt].`,
+                    meditationScriptSchema,
+                    sessionHistory
+                );
+                dispatchSoBelow({ type: 'START_MEDITATION', payload: { script: result.script, imagePrompts: result.imagePrompts } });
+                setIsLoading(false);
+                return;
+            }
+
+            if (finalLowerInput.startsWith('°resonate')) {
+                const concept = processedInput.substring('°resonate'.length).trim();
+                const signature = MusicService.createCymaticSignature(concept);
+                if (signature) {
+                    addMessage({ type: 'system', text: `Observing inherent resonance of "${concept}" at ${signature.frequency.toFixed(2)} Hz...` });
+                    activeResonanceRef.current = await AudioService.renderResonance(signature);
+                } else {
+                    addMessage({ type: 'system', text: `No cymatic signature found for "${concept}".` });
+                }
+                setIsLoading(false);
+                return;
+            }
+
+            const lastAIMessage = sessionHistory.slice().reverse().find(m => m.type === 'ai') as AIMessage | undefined;
+            const isBealeContext = lastAIMessage?.analysisType === 'beale_cipher_solution' || (lastAIMessage?.text && lastAIMessage.text.toLowerCase().includes('beale'));
+
+            if ((finalLowerInput.startsWith('°narrow') || finalLowerInput.includes('narrow down the search') || finalLowerInput.includes('any other ways')) && isBealeContext) {
+                const analysis = codex.getLiberPrimusData('bealeTreasureMapAnalysis') as BealeTreasureMapAnalysis;
+                if (analysis) {
+                    addMessage({
+                        type: 'ai',
+                        text: 'Refining search grid. Cross-referencing hydrological, symbolic, and topographical data vectors...',
+                        analysisType: 'beale_treasure_map',
+                        result: analysis
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            if (finalLowerInput.startsWith('°compose_instructional')) {
+                const problem = processedInput.substring('°compose_instructional'.length).trim();
+                if (!problem) {
+                    addMessage({ type: 'system', text: 'Please provide a challenge or desire to compose for.' });
+                    setIsLoading(false);
+                    return;
+                }
+                addMessage({ type: 'system', text: `Analyzing "${problem}" for therapeutic composition...` });
+                const analysis = await GeminiService.generate<{ coreEmotion: string; affirmation: string; solfeggioFrequency: number; }>(
+                    `Analyze the user's stated problem: "${problem}". Extract a single positive core emotion that is its opposite, a short ALL CAPS affirmation for that emotion, and the most appropriate Solfeggio frequency from the list: [174, 285, 396, 417, 528, 639, 741, 852, 963].`,
+                    instructionalCompositionAnalysisSchema,
+                    sessionHistory
+                );
+                addMessage({ type: 'system', text: `Core Emotion: ${analysis.coreEmotion}. Affirmation: ${analysis.affirmation}. Frequency: ${analysis.solfeggioFrequency}Hz. Composing...` });
+                
+                const composition = MusicService.createInstructionalComposition(analysis.affirmation, analysis.solfeggioFrequency);
+                const allInstruments = codex.getAllInstrumentProfiles();
+                
+                const session = await AudioService.renderAndPlayInstructionalComposition(composition, {
+                    melody: allInstruments['Crystal Bells'],
+                    harmony: allInstruments['Ethereal Pad'],
+                    bass: allInstruments['Deep Bass']
+                });
+                
+                dispatchSoBelow({ type: 'START_INSTRUCTIONAL', payload: { ...session, composition } });
+                setIsLoading(false);
+                return;
+            }
+
+            if (finalLowerInput.startsWith('°compose')) {
+                const text = processedInput.substring('°compose'.length).trim();
+                if (!text) {
+                    addMessage({ type: 'system', text: 'Please provide text to compose music from.' });
+                    setIsLoading(false);
+                    return;
+                }
+                addMessage({ type: 'system', text: `Sonifying text: "${text}"...` });
+                const composition = MusicService.createCompositionFromText(text);
+
+                let instrumentProfiles;
+                try {
+                    const productionNotesPrompt = `
+                        You are an expert music producer with a deep understanding of esoteric sound design.
+                        A musical composition has been algorithmically generated from text. Your task is to provide production notes.
+                        Composition Data:
+                        - Key: ${composition.metadata.key} ${composition.metadata.mode}
+                        - BPM: ${composition.metadata.bpm}
+                        - Source: ${composition.metadata.sourceReference}
+                        - Track Names: ${composition.tracks.map(t => t.name).join(', ')}
+                        
+                        Available Instruments:
+                        ${Object.values(codex.getAllInstrumentProfiles()).map(p => `- ${p.name}: ${p.description}`).join('\n')}
+
+                        Based on the source text and musical parameters, choose the best instrument for each track (melody, harmony, bass) and provide brief notes on arrangement, mixing, and mastering to achieve a powerful, evocative result.
+                    `;
+                    const notes = await GeminiService.generate<AIProductionNotes>(productionNotesPrompt, aiProductionNotesSchema, sessionHistory);
+                    
+                    instrumentProfiles = {
+                        melody: codex.getInstrumentProfile(notes.instruments.find(i => i.trackName === 'melody')?.instrumentName || 'Crystal Bells')!,
+                        harmony: codex.getInstrumentProfile(notes.instruments.find(i => i.trackName === 'harmony')?.instrumentName || 'Ethereal Pad')!,
+                        bass: codex.getInstrumentProfile(notes.instruments.find(i => i.trackName === 'bass')?.instrumentName || 'Deep Bass')!,
+                    };
+                    addMessage({ type: 'system', text: `AI Scribe production notes received: ${notes.overallMood}. Rendering audio...` });
+                } catch (aiError) {
+                    console.warn("AI Production Notes failed, using fallback instruments.", aiError);
+                    addMessage({ type: 'system', text: `AI Scribe unavailable. Using default instrumentation protocol. Rendering audio...` });
+                    const allInstruments = codex.getAllInstrumentProfiles();
+                    instrumentProfiles = {
+                        melody: allInstruments['Crystal Bells'],
+                        harmony: allInstruments['Ethereal Pad'],
+                        bass: allInstruments['Deep Bass']
+                    };
+                }
+                
+                const session = await AudioService.renderAndPlayInstructionalComposition(composition, instrumentProfiles);
+                dispatchSoBelow({ type: 'START_INSTRUCTIONAL', payload: { ...session, composition } });
+                setIsLoading(false);
+                return;
+            }
+
+            if (finalLowerInput.startsWith('°scry')) {
+                const prompt = processedInput.substring('°scry'.length).trim() || 'A swirling nebula in a crystal ball, revealing a hidden symbol.';
+                addMessage({ type: 'system', text: `Scrying the aether for: "${prompt}"...` });
+                const imageResults = await GeminiService.generateImages(prompt, 1);
+                if (imageResults && imageResults.length > 0) {
+                    addMessage({
+                        type: 'ai',
+                        text: `The aether reveals a vision of "${prompt}".`,
+                        analysisType: 'scried_image',
+                        result: { prompt, imageData: imageResults[0] }
+                    });
+                } else {
+                    throw new Error("Image transcription failed.");
+                }
+                setIsLoading(false);
+                return;
+            }
+            if (finalLowerInput.startsWith('°chronovise')) {
+                const prompt = processedInput.substring('°chronovise'.length).trim() || 'A tour of a futuristic city built with glowing, crystalline structures.';
+                addMessage({ type: 'system', text: `Initiating temporal transcription for: "${prompt}"...` });
+                const videoUrl = await GeminiService.generateVideo(prompt, (status: string) => {
+                    addMessage({ type: 'system', text: status });
+                });
+                addMessage({
+                    type: 'ai',
+                    text: `A temporal sequence has been transcribed from the cosmic memory: "${prompt}".`,
+                    analysisType: 'chronovised_video',
+                    result: { prompt, videoUrl }
+                });
+                setIsLoading(false);
+                return;
+            }
+
+            if (finalLowerInput.startsWith('°gematria ')) {
+                const word = processedInput.substring('°gematria '.length).trim();
                 const letters = word.split('');
                 const standard = hebrewNetwork.calculatePathGematria(letters);
                 const gematriaResult: GematriaAnalysis = {
@@ -431,27 +774,7 @@ export const useAstrianSystem = () => {
                 setIsLoading(false);
                 return;
             }
-             if (lowerInput.startsWith('°scry')) {
-                const prompt = input.substring('°scry'.length).trim() || 'A swirling nebula in a crystal ball, revealing a hidden symbol.';
-                addMessage({ type: 'system', text: `Scrying the aether for: "${prompt}"...` });
-                try {
-                    // We don't display the image, just get a description of it.
-                    const descriptionResponse = await GeminiService.generateTextOnly(
-                        `I have just had a vision based on the prompt: "${prompt}". Describe the vision in a mystical and evocative way, as if interpreting an omen.`,
-                        sessionHistory
-                    );
-                    addMessage({
-                        type: 'ai', text: `The aether reveals a vision:\n\n${descriptionResponse}`,
-                        analysisType: 'chat'
-                    });
-                } catch (imgErr) {
-                    addMessage({ type: 'system', text: `The scrying attempt failed. The aether is cloudy.` });
-                } finally {
-                    setIsLoading(false);
-                    return;
-                }
-            }
-            if (lowerInput.startsWith('°archetype_draw')) {
+            if (finalLowerInput.startsWith('°archetype_draw')) {
                 const analysis = hebrewNetwork.getRandomArchetype();
                 if (analysis) {
                     addMessage({
@@ -463,20 +786,18 @@ export const useAstrianSystem = () => {
                 return;
             }
 
-            // --- Sensory Commands ---
-            if (lowerInput.startsWith('°analyze palm')) {
+            if (finalLowerInput.startsWith('°analyze palm')) {
                 dispatchSoBelow({ type: 'START_PALMISTRY_CAPTURE' });
                 setIsLoading(false);
                 return;
             }
-            if (lowerInput.startsWith('°analyze voice')) {
+            if (finalLowerInput.startsWith('°analyze voice')) {
                 dispatchSoBelow({ type: 'START_VOICE_CAPTURE' });
                 setIsLoading(false);
                 return;
             }
 
-            // --- Codex Lookups ---
-            if (lowerInput.includes('cicada 3301')) {
+            if (finalLowerInput.includes('cicada 3301')) {
                 const cicadaSolution = codex.getCicadaSolution();
                 if (cicadaSolution) {
                     addMessage({ type: 'ai', text: cicadaSolution.overview, analysisType: 'cicada_3301_solution', result: cicadaSolution });
@@ -484,7 +805,7 @@ export const useAstrianSystem = () => {
                     return;
                 }
             }
-            if (lowerInput.includes('beale cipher')) {
+            if (finalLowerInput.includes('beale cipher')) {
                 const bealeSolution = codex.getLiberPrimusData('bealeCipherSolution') as BealeCipherSolution;
                 if (bealeSolution) {
                     addMessage({ type: 'ai', text: `Accessing codex entry for: ${bealeSolution.title}`, analysisType: 'beale_cipher_solution', result: bealeSolution });
@@ -492,12 +813,12 @@ export const useAstrianSystem = () => {
                     return;
                 }
             }
-            if (lowerInput.includes('voynich') && lowerInput.includes('translation')) {
+            if (finalLowerInput.includes('voynich') && finalLowerInput.includes('translation')) {
                 const translationResult = codex.getLiberPrimusData('voynichTranslation') as VoynichTranslationResult;
                 if (translationResult) {
                     addMessage({
                         type: 'ai',
-                        text: `Accessing canonized translation of the Voynich Manuscript.`,
+                        text: 'Accessing translated folio from the Voynich manuscript codex.',
                         analysisType: 'voynich_translation',
                         result: translationResult
                     });
@@ -505,271 +826,110 @@ export const useAstrianSystem = () => {
                     return;
                 }
             }
-            if (lowerInput.includes('voynich') && lowerInput.includes('els') && lowerInput.includes('78r')) {
-                const elsResult = codex.getLiberPrimusData('voynichELSAnalysis78r') as DeepELSAnalysisResult;
-                if (elsResult) {
-                    addMessage({
-                        type: 'ai',
-                        text: `Executing deep ELS analysis on Voynich Folio 78r. Found significant sequences related to core structural keys.`,
-                        analysisType: 'deep_els',
-                        result: elsResult
-                    });
-                    setIsLoading(false);
-                    return;
-                }
+            // Default chat behavior if no command is matched
+            const response = await GeminiService.generateTextOnly(rawInput, 'oracle', sessionHistory, guidingIntent);
+            addMessage({ type: 'ai', text: response, analysisType: 'chat' });
+
+            // AI-driven theme change
+            const themeResponse = await GeminiService.generate<{ chakra: string }>(
+                `Based on the user's last query ("${rawInput}") and your response ("${response.substring(0, 100)}..."), which of the 7 chakras (root, sacral, solarPlexus, heart, throat, thirdEye, crown) or 'neutral' best represents the energetic theme of this exchange?`,
+                chakraThemeSchema,
+                sessionHistory
+            );
+            if (themeResponse && themeResponse.chakra) {
+                setChakraTheme(themeResponse.chakra.toLowerCase().replace(/\s/g, ''));
             }
-            
-            // --- Core Protocols ---
-            if (lowerInput.startsWith('°solve')) {
-                const target = lowerInput.replace('°solve', '').trim();
-                if (target) { startSolveSession(target); } 
-                else { addMessage({ type: 'system', text: 'Please specify a target for the °solve protocol.' }); }
-            } else {
-                 const response = await GeminiService.generateTextOnly(input, sessionHistory, guidingIntent);
-                 addMessage({ type: 'ai', text: response, analysisType: 'chat' });
-            }
+
         } catch (e: any) {
-            console.error("Primary message handler failed:", e);
-            try {
-                if (e.message && e.message.startsWith('API_KEY_INVALID')) {
-                    setError("System Fault: A critical permission error occurred. The API key is invalid or the required API is not enabled. Please check the environment configuration.");
-                } else {
-                    const faultAnalysis = await GeminiService.analyzeCoherenceFault(input, e.message, sessionHistory);
-                    setError(faultAnalysis);
-                }
-            } catch (faultErr) {
-                console.error("Coherence fault analysis failed:", faultErr);
-                setError("System Coherence Fault: A cascading error occurred. The system could not analyze the initial failure. Reverting to a stable state.");
-            }
+            console.error("Message handling failed:", e);
+            const errorMessage = (e.message && e.message.startsWith("API_KEY_INVALID"))
+                ? e.message
+                : await GeminiService.analyzeCoherenceFault(rawInput, e.message, sessionHistory);
+            setError(errorMessage);
+            addMessage({ type: 'system', text: errorMessage });
         } finally {
             setIsLoading(false);
         }
-    }, [addMessage, sessionHistory, guidingIntent, activeSolveSession, stopSolveSession, startSolveSession]);
-
-    // Initialization & Persistence Effects
-    useEffect(() => {
-        const initializeSystem = async () => {
-            try {
-                // Load user's custom tools & widgets from localStorage
-                const savedTools = localStorage.getItem('astrian_custom_tools');
-                if (savedTools) setCustomTools(JSON.parse(savedTools));
-                
-                const savedWidgets = localStorage.getItem('astrian_widgets');
-                if (savedWidgets) setWidgets(JSON.parse(savedWidgets));
-
-                setCalibrationStatus('Calibrating Willow Network...');
-                setCalibrationSubtext('Observing inherent structural resonance...');
-                await hebrewNetwork.initialize();
-
-                setCalibrationStatus('Calibrating Universal Codex...');
-                setCalibrationSubtext('Hydrating compressed knowledge indices...');
-                await codex.initialize();
-
-                setCalibrationStatus('Calibration Complete.');
-                setCalibrationSubtext('The work is done. Ready for inquiry.');
-                setIsCorporaInitialized(true);
-
-                if (!localStorage.getItem('astrian_key_first_visit')) {
-                    setIsFirstVisit(true);
-                    setShowWelcomeOffer(true);
-                    localStorage.setItem('astrian_key_first_visit', 'false');
-                }
-            } catch (error) {
-                console.error("Initialization failed:", error);
-                setCalibrationStatus('System Fault');
-                setCalibrationSubtext('A critical error occurred during initialization.');
-            }
-        };
-        initializeSystem();
-    }, []);
-
-    // Effect to save custom tools to localStorage whenever they change
-    useEffect(() => {
-        try {
-            localStorage.setItem('astrian_custom_tools', JSON.stringify(customTools));
-        } catch (e) {
-            console.error("Failed to save custom tools:", e);
-        }
-    }, [customTools]);
-
-    // Effect to save widgets to localStorage whenever they change
-    useEffect(() => {
-        try {
-            localStorage.setItem('astrian_widgets', JSON.stringify(widgets));
-        } catch (e) {
-            console.error("Failed to save widgets:", e);
-        }
-    }, [widgets]);
-
-
-    // Chakra Theme Effect
-    useEffect(() => {
-        if (sessionHistory.length === 0) return;
-        const lastMessage = sessionHistory[sessionHistory.length - 1];
-        let textToAnalyze = '';
-        // FIX: Added explicit casting to UserMessage/AIMessage to access .text property.
-        if (lastMessage.type === 'user') textToAnalyze = (lastMessage as UserMessage).text;
-        // FIX: Added explicit casting to UserMessage/AIMessage to access .text property.
-        if (lastMessage.type === 'ai') textToAnalyze = (lastMessage as AIMessage).text;
-        
-        if (textToAnalyze) {
-            const getTheme = async () => {
-                try {
-                    const result = await GeminiService.generate<{ chakra: string }>(
-                        `Analyze the emotional content of this text: "${textToAnalyze}". Respond with the corresponding chakra: root, sacral, solarPlexus, heart, throat, thirdEye, crown, or neutral.`,
-                        chakraThemeSchema
-                    );
-                    setChakraTheme(result.chakra || 'neutral');
-                } catch (e) {
-                    console.error("Chakra theme analysis failed:", e);
-                    setChakraTheme('neutral');
-                }
-            };
-            getTheme();
-        }
-    }, [sessionHistory]);
-
+    }, [addMessage, sessionHistory, guidingIntent, stopSolveSession, startSolveSession, soBelowState.view, handleHomeSendMessage, homeSessionHistory, dispatchSoBelow, setChakraTheme, generateVisualChallenge, aweData]);
+    
+    // FIX: Add missing return statement to export all state and handlers from the hook.
     return {
-        addMessage,
         sessionHistory,
+        homeSessionHistory,
         isLoading,
         error,
-        handleSendMessage,
-        handleRetry,
+        guidingIntent,
+        setGuidingIntent,
+        toasts,
+        bookmarks,
+        activeSolveSession,
+        soBelowState,
+        dispatchSoBelow,
         isModalOpen,
         setIsModalOpen,
         crossRefValue,
-        handleNumberInteract,
-        handleSynthesizeConnections,
-        isSynthesizing,
-        synthesisResult,
-        guidingIntent,
-        setGuidingIntent,
+        setCrossRefValue,
         resonanceSeed,
-        isCorporaInitialized,
-        calibrationStatus,
-        calibrationSubtext,
-        aweData,
-        setAweData,
-        isAweComplete,
-        isPlannerUnlocked,
-        toasts,
-        addToast,
-        dismissToast,
-        // Replace individual state exports with the reducer's state and dispatcher
-        soBelowState,
-        dispatchSoBelow,
-        // Keep functions that dispatch actions
-        generateVisualChallenge,
-        handleUnlockSession,
-        chakraTheme,
+        setResonanceSeed,
+        isSynthesizing,
+        setIsSynthesizing,
+        synthesisResult,
+        setSynthesisResult,
         isFirstVisit,
+        setIsFirstVisit,
         showWelcomeOffer,
-        handleDismissWelcomeOffer,
+        setShowWelcomeOffer,
         isTourActive,
+        setIsTourActive,
         tourStep,
         setTourStep,
-        startTour,
-        endTour,
-        ayinVoiceEnabled,
-        speakText,
         isListening,
-        startVoiceInput,
-        toggleFavoriteComposition: () => {}, // Placeholder
-        bookmarks,
+        setIsListening,
+        isCorporaInitialized,
+        setIsCorporaInitialized,
+        calibrationStatus,
+        setCalibrationStatus,
+        calibrationSubtext,
+        setCalibrationSubtext,
+        aweData,
+        setAweData,
+        customTools,
+        setCustomTools,
+        widgets,
+        setWidgets,
+        isAweComplete,
+        palmistryDone,
+        voiceDone,
+        isPlannerUnlocked,
+        ayinVoiceEnabled,
+        solveIntensity,
+        chakraTheme,
+        setChakraTheme,
+        addMessage,
+        addToast,
         toggleBookmark,
-        handleDownloadArchive,
+        handleSaveTool,
+        dismissToast,
+        stopSolveSession,
+        startSolveSession,
+        handleUnlockSession,
+        generateVisualChallenge,
+        endTour,
+        speakText,
+        startVoiceInput,
+        toggleFavoriteComposition,
         handleScreenshot,
+        handleDownloadArchive,
         handleOpenIngestView,
-        // Replace placeholders with real handlers
+        handleDismissWelcomeOffer,
+        startTour,
+        handleNumberInteract,
+        handleSynthesizeConnections,
+        handleRetry,
         handlePalmImageCapture,
         handleVoiceRecording,
         handlePlannerCommand,
-        activeSolveSession,
-        solveIntensity,
-        customTools,
-        handleSaveTool,
-        widgets,
-        setWidgets,
-    };
-};
-
-
-// =================================================================================================
-// --- UI HOOK (useUserInterface) ---
-// =================================================================================================
-export const useUserInterface = (
-    addMessage: (message: AddMessageArg) => SessionRecord,
-    isSolveActive: boolean,
-    isInitialized: boolean,
-    dispatchSoBelow: React.Dispatch<SoBelowAction>
-) => {
-    const [viewMode, setViewMode] = useState<ViewMode>('boot');
-    const [isCallSignMenuOpen, setIsCallSignMenuOpen] = useState(false);
-    const [transitionText, setTransitionText] = useState<string | null>(null);
-    const [activeTool, setActiveTool] = useState<string | null>(null);
-    const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
-    const [isArchiveOpen, setIsArchiveOpen] = useState(false);
-    const [isManualOpen, setIsManualOpen] = useState(false);
-    const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
-
-
-    const handleCompassDoubleClick = useCallback(() => {
-        if (isSolveActive) {
-            addMessage({ type: 'system', text: 'Navigation is locked during active analysis.' });
-            return;
-        }
-        
-        const homeCallSign = CALL_SIGNS.find(cs => cs.name === 'Home');
-
-        if (viewMode === 'callSign') {
-            // If in a call sign, return to the globe
-             setViewMode('globe');
-             dispatchSoBelow({ type: 'STOP_SESSION' });
-        } else {
-            // If on the globe, go to the default 'Home' call sign
-            if(homeCallSign) {
-                handleCallSignSelect(homeCallSign);
-            }
-        }
-    }, [addMessage, isSolveActive, viewMode, dispatchSoBelow]);
-    
-    const navigateToHome = useCallback(() => {
-        if(isInitialized) {
-            setViewMode('globe');
-        }
-    }, [isInitialized]);
-
-    const handleCallSignSelect = useCallback((callSign: CallSign) => {
-        setIsCallSignMenuOpen(false);
-        setTransitionText(`Traversing to: ${callSign.name}`);
-        setTimeout(() => {
-            setViewMode('callSign');
-            dispatchSoBelow({ type: 'SET_ACTIVE_CALL_SIGN', payload: callSign });
-            addMessage({ type: 'system', text: `Connection established: ${callSign.name}.` });
-        }, 750);
-        setTimeout(() => setTransitionText(null), 1500);
-    }, [addMessage, dispatchSoBelow]);
-
-    const handleBookmarkSelect = useCallback((bookmark: string) => {
-        addMessage({type: 'user', text: bookmark});
-    }, [addMessage]);
-
-    return {
-        viewMode,
-        setViewMode,
-        isCallSignMenuOpen,
-        setIsCallSignMenuOpen,
-        handleCallSignSelect,
-        transitionText,
-        activeTool,
-        setActiveTool,
-        handleCompassDoubleClick,
-        handleBookmarkSelect,
-        navigateToHome,
-        isBookmarksOpen, setIsBookmarksOpen,
-        isArchiveOpen, setIsArchiveOpen,
-        isManualOpen, setIsManualOpen,
-        isWhiteboardOpen, setIsWhiteboardOpen,
+        handleHomeSendMessage,
+        handleSendMessage
     };
 };
