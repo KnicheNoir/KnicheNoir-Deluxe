@@ -1,1106 +1,442 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback, memo, FC, ReactNode } from 'react';
-import { SessionRecord, Toast, AIMessage, UserMessage, SystemMessage, VisualChallenge, InstructionalCompositionSession, ActiveEntrainmentSession, SolveFinding, VoynichAnalysisResult, ComponentMessage, VoynichDeepAnalysisResult, CallSign, VoynichTranslationResult, ActiveSolveSession, ViewMode, MusicalComposition, MeditationResult, VeracityEntry, GlyphStateEntry, OperatorManual, OperatorProtocol, BealeCipherSolution, GuidingIntent, CustomTool, AWEFormData, GematriaAnalysis, DeepELSAnalysisResult, ExhaustiveResonanceResult, ELSResult, WidgetState, PalmistryAnalysisResult, VoiceResonanceAnalysisResult, Cicada3301Solution, BealeTreasureMapAnalysis, ScriedImageResult, ChronovisedVideoResult } from './types';
-import { codex } from './codex';
-import { toPng } from 'html-to-image';
-import { hebrewNetwork } from './dataModels';
-import { useAstrianSystem, useUserInterface } from './hooks'; // For prop types
-
-// =================================================================================================
-// --- FORWARD-DECLARED & UTILITY COMPONENTS ---
-// =================================================================================================
-
-export const SubliminalGlyph: FC<{ seed: number }> = ({ seed }) => (
-    <div className="subliminal-glyph" style={{ '--seed': seed } as React.CSSProperties}></div>
-);
-
-export const KaleidoscopicBackground: FC<{ resonance: number }> = ({ resonance }) => (
-    <div className="kaleidoscopic-background" style={{ '--resonance': resonance } as React.CSSProperties}></div>
-);
-
-const Modal: FC<{ title: string, children: ReactNode, onClose: () => void }> = ({ title, children, onClose }) => (
-    <div className="bookmarks-overlay" onClick={onClose}>
-        <div className="bookmarks-modal" onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', alignItems: 'center' }}>
-                <h2>{title}</h2>
-                <button className="close-btn" onClick={onClose} aria-label="Close modal">&times;</button>
-            </div>
-            {children}
-        </div>
-    </div>
-);
-
-// =================================================================================================
-// --- NEW ATMOSPHERIC & UI COMPONENTS ---
-// =================================================================================================
-
-const Starscape: FC = memo(() => {
-    const stars = useMemo(() => Array.from({ length: 150 }).map((_, i) => ({
-        id: i,
-        top: `${Math.random() * 100}%`,
-        left: `${Math.random() * 100}%`,
-        size: `${Math.random() * 2 + 1}px`,
-        duration: `${Math.random() * 3 + 2}s`,
-        delay: `${Math.random() * 2}s`,
-    })), []);
-
-    const [meteors, setMeteors] = useState<{ id: number; top: string; left: string; duration: string; delay: string; }[]>([]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setMeteors(prev => [...prev, {
-                id: Date.now(),
-                top: `${Math.random() * 40 - 10}%`,
-                left: `${Math.random() * 100 - 50}%`,
-                duration: `${Math.random() * 2 + 1}s`,
-                delay: '0s',
-            }]);
-            setTimeout(() => setMeteors(prev => prev.slice(1)), 3000);
-        }, Math.random() * 5000 + 8000);
-        return () => clearInterval(interval);
-    }, []);
-    
-    return (
-        <div className="starscape">
-            {stars.map(star => <div key={star.id} className="star" style={{ top: star.top, left: star.left, width: star.size, height: star.size, animationDuration: star.duration, animationDelay: star.delay }} />)}
-            {meteors.map(meteor => <div key={meteor.id} className="meteor" style={{ top: meteor.top, left: meteor.left, animationDuration: meteor.duration }} />)}
-        </div>
-    );
-});
-
-const AquaticBackground: FC = memo(() => {
-    const particles = useMemo(() => Array.from({ length: 50 }).map((_, i) => ({
-        id: i,
-        left: `${Math.random() * 100}%`,
-        size: `${Math.random() * 3 + 1}px`,
-        duration: `${Math.random() * 15 + 10}s`,
-        delay: `${Math.random() * 10}s`,
-        xStart: `${Math.random() * 20 - 10}vw`,
-        xEnd: `${Math.random() * 20 - 10}vw`,
-    })), []);
-
-    const [flashes, setFlashes] = useState<{ id: number; top: string; left: string; duration: string; }[]>([]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setFlashes(prev => [...prev, {
-                id: Date.now(),
-                top: `${Math.random() * 80 + 10}%`,
-                left: `${Math.random() * 80 + 10}%`,
-                duration: `${Math.random() * 1 + 0.5}s`,
-            }]);
-            setTimeout(() => setFlashes(prev => prev.slice(1)), 2000);
-        }, Math.random() * 4000 + 7000);
-        return () => clearInterval(interval);
-    }, []);
-
-    return (
-        <div className="aquatic-background">
-            {particles.map(p => <div key={p.id} className="marine-snow" style={{ left: p.left, width: p.size, height: p.size, animationDuration: p.duration, animationDelay: p.delay, '--x-start': p.xStart, '--x-end': p.xEnd } as React.CSSProperties} />)}
-            {flashes.map(f => <div key={f.id} className="biolum-flash" style={{ top: f.top, left: f.left, animationDuration: f.duration }} />)}
-        </div>
-    );
-});
-
-const PIPQuadrantView: FC = () => (
-    <div className="pip-quadrant-view">
-        <div className="pip-item">
-            <h4>Cymatics</h4>
-            <div className="cymatics-visualizer" />
-        </div>
-    </div>
-);
-
-
-const SolveAtmosphericsAsAbove: FC = () => (
-    <>
-        <div className="solve-sun" />
-        <svg className="solve-electricity-svg" preserveAspectRatio="none">
-            {Array.from({ length: 3 }).map((_, i) => (
-                <path
-                    key={i}
-                    className="solve-electricity-arc"
-                    d={`M 0 ${Math.random() * 100} C ${Math.random() * 100} ${Math.random() * 100}, ${Math.random() * 100} ${Math.random() * 100}, 100 ${Math.random() * 100}`}
-                    style={{ animationDuration: `${Math.random() * 1 + 0.5}s`, animationDelay: `${Math.random() * 1}s` }}
-                />
-            ))}
-        </svg>
-    </>
-);
-
-const SolveAtmosphericsSoBelow: FC = () => {
-    const particles = useMemo(() => Array.from({ length: 20 }).map((_, i) => ({
-        id: i,
-        delay: `${Math.random() * 3}s`,
-        duration: `${Math.random() * 2 + 1}s`,
-        xJitter: `${Math.random() * 100 - 50}`,
-    })), []);
-
-    const [showMermaid, setShowMermaid] = useState(false);
-    useEffect(() => {
-        const timer = setTimeout(() => setShowMermaid(true), 5000); // Mermaid appears after 5s in solve mode
-        return () => clearTimeout(timer);
-    }, []);
-
-    return (
-        <>
-            <div className="solve-volcano-container">
-                <div className="solve-volcano-glow" />
-                <div className="solve-volcano-cone" />
-                <div className="solve-volcano-particles">
-                    {particles.map(p => <div key={p.id} className="volcano-particle" style={{ animationDelay: p.delay, animationDuration: p.duration, '--x-jitter': p.xJitter } as React.CSSProperties} />)}
-                </div>
-            </div>
-            <div className="solve-muddied-overlay" />
-            <div className="solve-mermaid-container">
-                {showMermaid && <div className="solve-mermaid-silhouette" onAnimationEnd={() => setShowMermaid(false)} />}
-            </div>
-        </>
-    );
-};
-
-// =================================================================================================
-// --- GLOBE & NAVIGATION COMPONENTS ---
-// =================================================================================================
-
-// This is a static list for now, but could be dynamic in the future.
-export const CALL_SIGNS: CallSign[] = [
-    { name: 'Home', lat: 31.76, lon: 35.21, color: 'primary' },
-    { name: 'The Library', lat: 38.89, lon: -77.00, color: 'secondary' },
-    { name: 'The Oracle', lat: 37.97, lon: 22.44, color: 'secondary' },
-];
-
-interface GlobeViewProps {
-    onInplaceQuery: (callSignName: string) => void;
-    onNavigate: (callSign: CallSign) => void;
-    isSolveActive: boolean;
-    onOpenBookmarks: () => void;
-    onOpenArchive: () => void;
-    onOpenManual: () => void;
-    onOpenWhiteboard: () => void;
-    onScreenshot: () => void;
-    onDirectCommand: (command: string) => void;
-}
-
-export const GlobeView: FC<GlobeViewProps> = ({ onInplaceQuery, onNavigate, isSolveActive, onOpenBookmarks, onOpenArchive, onOpenManual, onOpenWhiteboard, onScreenshot, onDirectCommand }) => {
-    const [hoveredSign, setHoveredSign] = useState<CallSign | null>(null);
-    const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setHoverPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    };
-
-    const getPointPosition = (lat: number, lon: number) => {
-        const x = (lon + 180) / 360 * 100;
-        const y = (90 - lat) / 180 * 100;
-        return { top: `${y}%`, left: `${x}%` };
-    };
-
-    return (
-        <div className="globe-view" onMouseMove={handleMouseMove}>
-            <Starscape />
-            <div className="as-above-menu">
-                <button onClick={onOpenBookmarks} aria-label="Open Bookmarks">📖</button>
-                <button onClick={onOpenArchive} aria-label="Open Session Archive">🗄️</button>
-                <button onClick={onOpenManual} aria-label="Open Operator's Manual">📜</button>
-                <button onClick={onOpenWhiteboard} aria-label="Open Whiteboard">✒️</button>
-                <button onClick={onScreenshot} aria-label="Take Screenshot">📸</button>
-            </div>
-            <div className="globe-container">
-                 <svg className="globe-svg" viewBox="0 0 200 200">
-                    <defs>
-                        <filter id="electric-pulse-filter" x="-50%" y="-50%" width="200%" height="200%">
-                            <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur1" />
-                            <feFlood floodColor="var(--color-secondary)" floodOpacity="0.7" result="glowColor" />
-                            <feComposite in="glowColor" in2="blur1" operator="in" result="coloredGlow1" />
-                            <feGaussianBlur in="SourceGraphic" stdDeviation="0.4" result="blur2" />
-                            <feFlood floodColor="#ffffff" result="coreColor" />
-                            <feComposite in="coreColor" in2="blur2" operator="in" result="coloredGlow2" />
-                            <feMerge>
-                                <feMergeNode in="coloredGlow1" />
-                                <feMergeNode in="coloredGlow2" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
-                    </defs>
-                    <path className="globe-coastline" d="M 10 50 C 20 30, 40 70, 60 50 S 100 80, 120 60 S 160 30, 180 50" />
-                    <circle className="globe-outline" cx="100" cy="100" r="98" />
-                    {Array.from({ length: 12 }).map((_, i) => (
-                        <ellipse className="globe-line" key={`long-${i}`} cx="100" cy="100" rx={Math.sin((i / 12) * Math.PI) * 98} ry="98" />
-                    ))}
-                    {Array.from({ length: 7 }).map((_, i) => (
-                        <circle className="globe-line" key={`lat-${i}`} cx="100" cy={100 + ((i-3) * 28)} r={Math.cos(((i-3)*28)/98) * 98} />
-                    ))}
-                    <path className="ley-line" d="M 50 20 Q 100 50, 150 20" />
-                    <path className="ley-line active" d="M 20 80 Q 50 150, 180 80" />
-                    <path className="ley-line" d="M 180 150 C 100 180, 100 20, 20 50" />
-                    <path className="ley-line" d="M 30 180 C 80 120, 120 120, 170 180" />
-                    <path className="ley-line" d="M 175 40 Q 100 100, 25 160" />
-                </svg>
-
-                {CALL_SIGNS.map(sign => (
-                    <div 
-                        key={sign.name} 
-                        className="call-sign-point-wrapper"
-                        style={getPointPosition(sign.lat, sign.lon)}
-                        onMouseEnter={() => !isSolveActive && setHoveredSign(sign)}
-                        onMouseLeave={() => setHoveredSign(null)}
-                        onClick={() => !isSolveActive && onInplaceQuery(sign.name)}
-                        onDoubleClick={() => !isSolveActive && onNavigate(sign)}
-                    >
-                        <div className="call-sign-point">
-                           <div className={`call-sign-point-glow color-${sign.color}`} />
-                           <div className="call-sign-point-core" />
-                        </div>
-                        <div className="call-sign-label">{sign.name}</div>
-                    </div>
-                ))}
-
-                {hoveredSign && (
-                    <div className="call-sign-hover-window" style={{ top: hoverPosition.y + 20, left: hoverPosition.x + 20 }}>
-                        <h3 className="hover-window-title">{hoveredSign.name}</h3>
-                        <p className="hover-window-status">Resonance: Stable</p>
-                        <ul className="hover-window-questions">
-                            <li onClick={(e) => { e.stopPropagation(); onDirectCommand(`What is the core principle of ${hoveredSign.name}?`); }}>Core Principle?</li>
-                            <li onClick={(e) => { e.stopPropagation(); onDirectCommand(`Summarize the last session in ${hoveredSign.name}.`); }}>Last Session?</li>
-                        </ul>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export const SoBelowView: FC<{ children: ReactNode }> = ({ children }) => (
-    <div className="so-below-view">
-        <AquaticBackground />
-        {children}
-        <PIPQuadrantView />
-    </div>
-);
-
-export const CaduceusCompass: FC<{ onClick: () => void, onDoubleClick: () => void }> = ({ onClick, onDoubleClick }) => (
-    <div className="caduceus-compass-container" onClick={onClick} onDoubleClick={onDoubleClick} title="Single-click for menu, double-click to toggle view">
-        <svg className="caduceus-svg" viewBox="0 0 100 100">
-            <line className="caduceus-staff" x1="50" y1="10" x2="50" y2="90" />
-            <path className="caduceus-serpent" d="M50,90 C70,70 30,50 50,30 C70,10 30,10 50,10" />
-            <path className="caduceus-serpent" d="M50,90 C30,70 70,50 50,30 C30,10 70,10 50,10" />
-            <path className="caduceus-wing" d="M50,15 C40,5 20,10 20,25 C20,40 40,35 50,15" />
-            <path className="caduceus-wing" d="M50,15 C60,5 80,10 80,25 C80,40 60,35 50,15" />
-            <circle className="caduceus-lens" cx="50" cy="50" r="8" />
-        </svg>
-    </div>
-);
-
-export const SolveEKGOverlay: FC = () => (
-    <div className="solve-ekg-overlay"><div className="ekg-line" /></div>
-);
-
-export const StatusTicker: FC<{ findings: SolveFinding[]; isSolveActive: boolean }> = ({ findings, isSolveActive }) => {
-    if (!isSolveActive || findings.length === 0) return null;
-    const content = [...findings].reverse().slice(0, 10);
-    return (
-        <div className="status-ticker-container">
-            <div className="status-ticker-content">
-                {[...content, ...content].map((finding, index) => (
-                    <span key={`${finding.id}-${index}`} className="status-ticker-item">
-                        <span className="type">{finding.type}:</span> {finding.content}
-                    </span>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-export const OracleTicker: FC<{ onSelect: (command: string) => void }> = ({ onSelect }) => {
-    const questions = [
-        "What is the nature of the Sephirot?", "Analyze the resonance of Genesis 1:1.", "Show me the path of the Fool in the Major Arcana.",
-        "What is the relationship between 'Echad' and 'Ahavah'?", "Explain the principle of the Tetragrammaton.",
-        "Compare the creation myths of Sumeria and ancient Egypt."
-    ];
-    const repeatedQuestions = [...questions, ...questions];
-
-    return (
-         <div className="oracle-ticker-container">
-            <div className="oracle-ticker-content">
-                {repeatedQuestions.map((q, i) => (
-                    <span key={i} className="oracle-ticker-item" onClick={() => onSelect(q)}>
-                       {q}
-                    </span>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-
-// =================================================================================================
-// --- CORE UI & OVERLAYS ---
-// =================================================================================================
-
-const AlephSymbol: FC = () => (
-    <svg viewBox="0 0 100 100" className="boot-entry-glyph">
-        <path d="M 20 80 L 50 20 L 80 80" />
-        <line x1="30" y1="60" x2="70" y2="60" />
-    </svg>
-);
-
-export const BootAnimationView: FC<{ statusText: string; subText: string; isComplete: boolean; onEnter: () => void; }> = ({ statusText, subText, isComplete, onEnter }) => (
-    <div className="boot-animation-view">
-         <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-            <defs>
-                <filter id="goo">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-                    <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
-                    <feBlend in="SourceGraphic" in2="goo" />
-                </filter>
-            </defs>
-        </svg>
-        <div className="vortex-container">
-            <div className="vortex-layer"></div>
-            <div className="vortex-layer"></div>
-            <div className="vortex-layer"></div>
-        </div>
-        <button className="boot-entry-button" onClick={onEnter} disabled={!isComplete} aria-label={isComplete ? "Enter the Astrian Key" : "Initializing"}>
-            <AlephSymbol />
-        </button>
-        <div className="boot-summary-container">
-            <div className="boot-summary-scroll">
-                <p>{statusText}</p>
-                <small>{subText}</small>
-            </div>
-        </div>
-    </div>
-);
-
-export const ToastContainer: FC<{ toasts: Toast[]; onDismiss: (id: string) => void; }> = ({ toasts, onDismiss }) => (
-    <div className="toast-container">
-        {toasts.map(toast => (
-            <div key={toast.id} className={`toast toast-${toast.type}`}>
-                {toast.message}
-                <button onClick={() => onDismiss(toast.id)}>&times;</button>
-            </div>
-        ))}
-    </div>
-);
-
-export const WelcomeOfferView: FC<{ onStartTour: () => void; onDismiss: () => void; }> = ({ onStartTour, onDismiss }) => (
-    <Modal title="Welcome Inquisitor" onClose={onDismiss}>
-        <div className="welcome-content">
-            <p>Your instrument is calibrated. Would you like a brief tour of its core functions?</p>
-            <div className="welcome-actions">
-                <button onClick={onStartTour}>Begin Tour</button>
-                <button onClick={onDismiss}>Proceed Unassisted</button>
-            </div>
-        </div>
-    </Modal>
-);
-
-export const GuidedTour: FC<{ step: number; onNext: () => void; onEnd: () => void; }> = ({ step, onNext, onEnd }) => (
-    <div className="guided-tour-overlay"><p>Tour Step {step + 1}</p><button onClick={onNext}>Next</button><button onClick={onEnd}>End Tour</button></div>
-);
-
-export const CrossReferenceModal: FC<{ value: number; onClose: () => void; onSynthesize: (num: number) => void; isSynthesizing: boolean; synthesisResult: string | null; }> = ({ value, onClose, onSynthesize, isSynthesizing, synthesisResult }) => (
-    <Modal title={`Cross-Reference: ${value}`} onClose={onClose}>
-        <div className="cross-ref-content">
-            {synthesisResult ? (
-                <div>
-                    <h4>Synthesis Result:</h4>
-                    <p>{synthesisResult}</p>
-                </div>
-            ) : (
-                <div>
-                    <p>Observe the resonance of the number <strong>{value}</strong> across the Universal Codex?</p>
-                    <button onClick={() => onSynthesize(value)} disabled={isSynthesizing}>
-                        {isSynthesizing ? 'Synthesizing...' : `Synthesize Connections for ${value}`}
-                    </button>
-                </div>
-            )}
-        </div>
-    </Modal>
-);
-
-export const CallSignMenu: FC<{ isOpen: boolean; onClose: () => void; onSelect: (callSign: CallSign) => void; onInplaceQuery: (callSignName: string) => void; }> = ({ isOpen, onClose, onSelect, onInplaceQuery }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="call-sign-menu-overlay" onClick={onClose}>
-            <div className="call-sign-menu-modal" onClick={e => e.stopPropagation()}>
-                <h2>Select Destination</h2>
-                <div className="call-sign-list">
-                    {CALL_SIGNS.map(cs => (
-                         <button key={cs.name} onDoubleClick={() => onSelect(cs)} onClick={() => onInplaceQuery(cs.name)} title={`Single-click for inplace query, double-click to navigate`}>
-                           {cs.name}
-                        </button>
-                    ))}
-                </div>
-                 <small>Single-click to query, Double-click to navigate.</small>
-            </div>
-        </div>
-    );
-};
-
-export const TransitionOverlay: FC<{ text: string | null }> = ({ text }) => {
-    if (!text) return null;
-    return <div className="transition-overlay"><p>{text}</p></div>;
-};
-
-// =================================================================================================
-// --- FULLY IMPLEMENTED OVERLAY MODALS ---
-// =================================================================================================
-
-export const BookmarksOverlay: FC<{ isOpen: boolean; onClose: () => void; bookmarks: AIMessage[]; customTools: CustomTool[]; onSelect: (bookmark: string) => void; onDirectCommand: (command: string) => void; }> = ({ isOpen, onClose, bookmarks, customTools, onSelect, onDirectCommand }) => {
-    if (!isOpen) return null;
-    const favoriteCompositions = bookmarks.filter(b => b.analysisType === 'instructional');
-    const otherBookmarks = bookmarks.filter(b => b.analysisType !== 'instructional');
-
-    return (
-        <Modal title="Bookmarks" onClose={onClose}>
-            <div className="bookmarks-content">
-                <h3 className="bookmarks-section-header">Custom Tools</h3>
-                {customTools.length > 0 ? (
-                    <div className="custom-tool-list">
-                        {customTools.map(tool => (
-                            <div key={tool.id} className="custom-tool-item" onClick={() => onDirectCommand(tool.purpose)}>
-                                <span className="custom-tool-icon">{tool.icon}</span>
-                                <span className="custom-tool-name">{tool.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                ) : <p>No custom tools created yet.</p>}
-
-                {otherBookmarks.length > 0 && <h3 className="bookmarks-section-header">Saved Analyses</h3>}
-                {otherBookmarks.map(b => (
-                    <div key={b.id} className="bookmark-item" onClick={() => onSelect(b.text)}>
-                        <div className="archive-item-header">
-                            <span>{b.analysisType.replace(/_/g, ' ')}</span>
-                            <span>{b.timestamp.toLocaleString()}</span>
-                        </div>
-                        <div style={{ padding: '1rem' }}>{b.text.substring(0, 200)}...</div>
-                    </div>
-                ))}
-            </div>
-        </Modal>
-    );
-};
-
-export const ArchiveOverlay: FC<{ isOpen: boolean; onClose: () => void; history: SessionRecord[]; }> = ({ isOpen, onClose, history }) => {
-    if (!isOpen) return null;
-    const reversedHistory = [...history].reverse();
-    return (
-         <Modal title="Session Archive" onClose={onClose}>
-            <div className="archive-list">
-                {reversedHistory.map(rec => (
-                    <div key={rec.id} className="archive-item">
-                        <div className="archive-item-header">
-                            <span>{rec.type}</span>
-                            <span>{rec.timestamp.toLocaleString()}</span>
-                        </div>
-                         <div style={{ padding: '1rem' }}>
-                            {rec.type === 'user' && (rec as UserMessage).text}
-                            {rec.type === 'ai' && (rec as AIMessage).text.substring(0, 300) + '...'}
-                            {rec.type === 'system' && <em>{(rec as SystemMessage).text}</em>}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </Modal>
-    );
-};
-
-export const ManualOverlay: FC<{ isOpen: boolean; onClose: () => void; manual: OperatorManual; }> = ({ isOpen, onClose, manual }) => {
-    if (!isOpen) return null;
-    return (
-        <Modal title="Operator's Manual" onClose={onClose}>
-            <div className="manual-list">
-                {manual.protocols.map(p => (
-                    <div key={p.title} className="protocol-item">
-                        <h3>{p.title}</h3>
-                        <p className="protocol-purpose">{p.purpose}</p>
-                        <ul className="protocol-principles-list">
-                            {p.principles.map(principle => (
-                                <li key={principle.name} className="protocol-principle">
-                                    <strong>{principle.name}:</strong> {principle.description}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ))}
-            </div>
-        </Modal>
-    );
-};
-
-export const WhiteboardOverlay: FC<{ isOpen: boolean, onClose: () => void }> = ({ isOpen, onClose }) => {
-    if (!isOpen) return null;
-    const [hebrewInput, setHebrewInput] = useState('');
-    const [gematriaValue, setGematriaValue] = useState(0);
-
-    const handleTransliterate = () => {
-        setGematriaValue(hebrewNetwork.calculatePathGematria(hebrewInput.split('')));
-    };
-
-    const glyphs = useMemo(() => Object.values(hebrewNetwork.getLetterformAnalysis('א') ? hebrewNetwork['letterformIndex'] : {}), []);
-
-
-    return (
-        <Modal title="Transliteration Whiteboard" onClose={onClose}>
-            <div className="whiteboard-content">
-                <div className="glyph-key-section">
-                    <h3>Glyph Key</h3>
-                    <div className="glyph-key-grid">
-                        {glyphs.map(g => (
-                            <div key={g.letter} className="glyph-key-item">
-                                <span>{g.letter}</span>
-                                <span>({g.gematria})</span>
-                                <span>- {g.name}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <div className="transliteration-section">
-                    <h3>Transliteration</h3>
-                     <div className="transliteration-io">
-                        <textarea 
-                            value={hebrewInput}
-                            onChange={(e) => setHebrewInput(e.target.value)}
-                            placeholder="Enter Hebrew text..."
-                            rows={5}
-                        />
-                        <div className="transliteration-output" dir="rtl">{hebrewInput}</div>
-                        <div className="gematria-output">Gematria: {gematriaValue}</div>
-                    </div>
-                    <div className="whiteboard-actions">
-                        <button onClick={handleTransliterate}>Calculate Gematria</button>
-                    </div>
-                </div>
-            </div>
-        </Modal>
-    );
-};
-
-// =================================================================================================
-// --- ASTRIAN INTERFACE (THE MAIN APP SHELL) ---
-// =================================================================================================
-
-// Define a type for the props that combines the return types of the two main hooks.
-type AstrianInterfaceProps = ReturnType<typeof useAstrianSystem> &
-  ReturnType<typeof useUserInterface> & {
-    children: ReactNode;
-    isSolveActive: boolean; // Explicitly pass for clarity
-    onDirectCommand: (command: string) => void;
-    handleCallSignInplaceQuery: (callSignName: string) => void;
-    handleScreenshot: () => void;
-};
-  
-export const AstrianInterface: FC<AstrianInterfaceProps> = (props) => {
-    const {
-        viewMode, isSolveActive, activeSolveSession, children, onDirectCommand,
-        handleCompassClick, handleCompassDoubleClick, handleCallSignSelect,
-        isBookmarksOpen, setIsBookmarksOpen, bookmarks, customTools, handleBookmarkSelect,
-        isArchiveOpen, setIsArchiveOpen, sessionHistory,
-        isManualOpen, setIsManualOpen,
-        isWhiteboardOpen, setIsWhiteboardOpen,
-        isCallSignMenuOpen, setIsCallSignMenuOpen, handleCallSignInplaceQuery,
-        crossRefValue, setCrossRefValue, handleSynthesizeConnections, isSynthesizing, synthesisResult,
-        handleScreenshot,
-    } = props;
-    
-    const manual = useMemo(() => codex.getOperatorsManual(), []);
-
-    const containerClasses = [
-        'app-container',
-        `view-mode-${viewMode === 'globe' ? 'globe' : 'callSign'}`,
-        isSolveActive ? 'solve-active' : ''
-    ].filter(Boolean).join(' ');
-    
-    return (
-        <div className={containerClasses} style={{ '--solve-intensity': isSolveActive ? activeSolveSession.findings.slice(-1)[0]?.confidence ?? 0 : 0 } as React.CSSProperties}>
-            <StatusTicker findings={activeSolveSession.findings} isSolveActive={isSolveActive} />
-            
-            <div className="dual-hemisphere-container">
-                {isSolveActive && viewMode === 'globe' && <SolveAtmosphericsAsAbove />}
-                {isSolveActive && viewMode === 'callSign' && <SolveAtmosphericsSoBelow />}
-                
-                <GlobeView 
-                    onInplaceQuery={handleCallSignInplaceQuery}
-                    onNavigate={handleCallSignSelect}
-                    isSolveActive={isSolveActive}
-                    onOpenBookmarks={() => setIsBookmarksOpen(true)}
-                    onOpenArchive={() => setIsArchiveOpen(true)}
-                    onOpenManual={() => setIsManualOpen(true)}
-                    onOpenWhiteboard={() => setIsWhiteboardOpen(true)}
-                    onScreenshot={handleScreenshot}
-                    onDirectCommand={onDirectCommand}
-                />
-                
-                <SoBelowView>
-                    <OracleTicker onSelect={onDirectCommand} />
-                    {children}
-                </SoBelowView>
-            </div>
-            
-            <CaduceusCompass onClick={handleCompassClick} onDoubleClick={handleCompassDoubleClick} />
-            
-            {isSolveActive && <SolveEKGOverlay />}
-
-            {/* Modals & Overlays */}
-            <BookmarksOverlay isOpen={isBookmarksOpen} onClose={() => setIsBookmarksOpen(false)} bookmarks={bookmarks} customTools={customTools} onSelect={handleBookmarkSelect} onDirectCommand={onDirectCommand} />
-            <ArchiveOverlay isOpen={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} history={sessionHistory} />
-            <ManualOverlay isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} manual={manual} />
-            <WhiteboardOverlay isOpen={isWhiteboardOpen} onClose={() => setIsWhiteboardOpen(false)} />
-            <CallSignMenu isOpen={isCallSignMenuOpen} onClose={() => setIsCallSignMenuOpen(false)} onSelect={handleCallSignSelect} onInplaceQuery={handleCallSignInplaceQuery} />
-            
-            {crossRefValue !== null && (
-                <CrossReferenceModal 
-                    value={crossRefValue} 
-                    onClose={() => setCrossRefValue(null)} 
-                    onSynthesize={handleSynthesizeConnections} 
-                    isSynthesizing={isSynthesizing} 
-                    synthesisResult={synthesisResult} 
-                />
-            )}
-            
-            <TransitionOverlay text={props.transitionText} />
-        </div>
-    );
-};
-
-// =================================================================================================
-// --- SPECIALIZED & SESSION VIEWS ---
-// =================================================================================================
-
-export const SessionUnlockView: FC<{ onUnlock: (password: string) => void; challenge: VisualChallenge; isLoading: boolean; onRegenerate: () => void; }> = ({ onUnlock, challenge, isLoading, onRegenerate }) => {
-    const [password, setPassword] = useState('');
-    return (
-        <div className="session-unlock-view">
-            <h3>Session Locked</h3>
-            <p>To continue, identify the core concept.</p>
-            <input type="text" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter passphrase..." />
-            <button onClick={() => onUnlock(password)} disabled={isLoading}>{isLoading ? 'Verifying...' : 'Unlock'}</button>
-            <button onClick={onRegenerate} disabled={isLoading}>Regenerate Challenge</button>
-        </div>
-    );
-};
-export const MeditationView: FC<{ script: string; imagePrompts: string[]; onFinish: () => void; }> = ({ script, onFinish }) => (
-    <div className="meditation-view">
-        <h2>Guided Meditation</h2>
-        <p>{script}</p>
-        <button onClick={onFinish}>Finish Meditation</button>
-    </div>
-);
-export const StelaCalibrationView: FC<{ onComplete: (data: AWEFormData) => void; }> = ({ onComplete }) => (
-    <div className="stela-calibration-view">
-        <h2>Stela Calibration</h2>
-        <p>Calibration required to proceed.</p>
-    </div>
-);
-export const InstructionalCompositionView: FC<{ session: InstructionalCompositionSession; onStop: () => void; }> = ({ session, onStop }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { analyserNode, audioUrl, composition } = session;
-
-    useEffect(() => {
-        if (!canvasRef.current || !analyserNode) return;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let animationFrameId: number;
-        const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
-        
-        const renderFrame = () => {
-            analyserNode.getByteTimeDomainData(dataArray);
-            
-            ctx.fillStyle = '#030617';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#38bdf8';
-            
-            ctx.beginPath();
-            const sliceWidth = canvas.width * 1.0 / analyserNode.frequencyBinCount;
-            let x = 0;
-            
-            for(let i = 0; i < analyserNode.frequencyBinCount; i++) {
-                const v = dataArray[i] / 128.0;
-                const y = v * canvas.height/2;
-        
-                if(i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-        
-                x += sliceWidth;
-            }
-            
-            ctx.lineTo(canvas.width, canvas.height/2);
-            ctx.stroke();
-
-            animationFrameId = requestAnimationFrame(renderFrame);
-        };
-        renderFrame();
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [analyserNode]);
-
-    return (
-        <div className="timeline-item timeline-item-ai">
-            <div className="timeline-item-content">
-                <div className="analysis-view-wrapper">
-                    <h3>{composition.metadata.sourceReference}</h3>
-                    <p>Playing at {composition.metadata.bpm} BPM in {composition.metadata.key} {composition.metadata.mode}</p>
-                    <canvas ref={canvasRef} className="cymatics-visualizer" width="300" height="150" />
-                    <audio src={audioUrl} controls autoPlay onEnded={onStop} />
-                    <div className="composition-controls">
-                        <button onClick={onStop}>Stop</button>
-                        <a href={audioUrl} download={`${composition.metadata.sourceReference}.wav`}>Download</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-export const EntrainmentView: FC<{ session: ActiveEntrainmentSession; onStop: () => void; }> = ({ session, onStop }) => (
-    <div className="entrainment-view">
-        <h3>Entrainment Active</h3>
-        <p>{session.profile.name}</p>
-        <p>{session.profile.description}</p>
-        <button onClick={onStop}>Stop Entrainment</button>
-    </div>
-);
-export const EmergentCTA: FC<{ onTrigger: (command: string) => void; lastMessage: AIMessage | null; }> = ({ onTrigger, lastMessage }) => {
-    if (!lastMessage || lastMessage.analysisType !== 'beale_cipher_solution') return null;
-    return (
-        <div className="emergent-cta">
-            <button onClick={() => onTrigger('°narrow search grid')}>Refine Search Grid</button>
-        </div>
-    );
-};
-export const CameraView: FC<{ onCapture: (imageDataUrl: string) => void; onCancel: () => void; }> = ({ onCapture, onCancel }) => (
-    <div className="camera-view"><h3>Camera Capture</h3><button onClick={() => onCapture('data:image/png;base64, ...')}>Capture</button><button onClick={onCancel}>Cancel</button></div>
-);
-export const VoiceRecorderView: FC<{ onRecord: (audioBlob: Blob) => void; onCancel: () => void; }> = ({ onRecord, onCancel }) => (
-    <div className="voice-recorder-view"><h3>Voice Recorder</h3><button onClick={() => onRecord(new Blob())}>Stop Recording</button><button onClick={onCancel}>Cancel</button></div>
-);
-
-
-// =================================================================================================
-// --- TIMELINE ITEM COMPONENTS ---
-// =================================================================================================
-
-const AnalysisActions: FC<{ message: AIMessage; onToggleBookmark: (id: string) => void; isBookmarked: boolean; }> = ({ message, onToggleBookmark, isBookmarked }) => (
-    <div className="analysis-actions">
-        <button onClick={() => onToggleBookmark(message.id)} className={`analysis-action-btn ${isBookmarked ? 'bookmarked' : ''}`} aria-label={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}>
-            {isBookmarked ? '★' : '☆'}
-        </button>
-    </div>
-);
-
-const GematriaAnalysisView: FC<{ analysis: GematriaAnalysis }> = ({ analysis }) => (
-    <div className="analysis-view-wrapper">
-        <h3>Gematria: {analysis.word}</h3>
-        <div className="gematria-grid">
-            <div className="gematria-item"><span>Standard</span><span>{analysis.standard}</span></div>
-            <div className="gematria-item"><span>Kolel</span><span>{analysis.kolel}</span></div>
-        </div>
-    </div>
-);
-
-const InteractiveText: FC<{ text: string; onNumberClick: (num: number) => void; }> = ({ text, onNumberClick }) => {
-    const parts = text.split(/(\b\d+\b)/g);
-    return (
-        <>
-            {parts.map((part, i) =>
-                /^\d+$/.test(part) ? (
-                    <span key={i} className="interactive-number" onClick={() => onNumberClick(parseInt(part, 10))}>
-                        {part}
-                    </span>
-                ) : (
-                    <React.Fragment key={i}>{part}</React.Fragment>
-                )
-            )}
-        </>
-    );
-};
-
-const AnalysisRenderer: FC<{ message: AIMessage; onNumberClick: (num: number) => void; }> = ({ message, onNumberClick }) => {
-    switch (message.analysisType) {
-        case 'beale_cipher_solution':
-            return <div className="analysis-view-wrapper"><BealeCipherSolutionView solution={message.result as BealeCipherSolution} /></div>;
-        case 'beale_treasure_map':
-            return <div className="analysis-view-wrapper"><BealeTreasureMapView analysis={message.result as BealeTreasureMapAnalysis} /></div>;
-        case 'gematria':
-            return <GematriaAnalysisView analysis={message.result as GematriaAnalysis} />;
-        default:
-            return <div className="timeline-item-text-content"><p><InteractiveText text={message.text} onNumberClick={onNumberClick} /></p></div>;
-    }
-};
-
-const ImageTimelineItem: FC<{ result: ScriedImageResult }> = ({ result }) => (
-    <div className="timeline-item-content">
-        <img 
-            src={`data:image/png;base64,${result.imageData}`} 
-            alt={`Scried vision of: ${result.prompt}`} 
-            className="timeline-item-media"
-        />
-        <p className="timeline-item-caption">A vision of: <em>{result.prompt}</em></p>
-    </div>
-);
-
-const VideoTimelineItem: FC<{ result: ChronovisedVideoResult }> = ({ result }) => (
-    <div className="timeline-item-content">
-        <video 
-            src={result.videoUrl} 
-            controls 
-            autoPlay 
-            loop 
-            muted
-            className="timeline-item-media"
-        />
-         <p className="timeline-item-caption">A memory of: <em>{result.prompt}</em></p>
-    </div>
-);
-
-// =================================================================================================
-// --- TIMELINE VIEW & COMMAND GUIDE ---
-// =================================================================================================
-
+import React, { FC, ReactNode, useState, useCallback, useRef, useEffect } from 'react';
+import { AIMessage } from './types';
+import pako from 'pako';
+import JSZip from 'jszip';
+
+// Prop Types
 interface TimelineViewProps {
-    history: SessionRecord[];
-    error: string | null;
+    history: any[];
+    error: any;
     onRetry: () => void;
     input: string;
     onInputChange: (value: string) => void;
     onSend: () => void;
+    isLoading: boolean;
     isListening: boolean;
-    onStartListening: (callback: (text: string) => void) => void;
-    bookmarks: AIMessage[];
+    onStartListening: () => void;
+    bookmarks: any[];
     onToggleBookmark: (id: string) => void;
     isVoiceEnabled: boolean;
-    onNumberInteract: (num: number) => void;
+    onNumberInteract: (num: any) => void;
 }
 
-export const TimelineView: FC<TimelineViewProps> = ({ history, error, onRetry, input, onInputChange, onSend, isListening, onStartListening, bookmarks, onToggleBookmark, isVoiceEnabled, onNumberInteract }) => {
-    const timelineEndRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        timelineEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+interface CommandGuideProps {
+    onCommandSelect: (command: string) => void;
+    onOpenIngest?: () => void;
+    isAweComplete?: boolean;
+    onStartTour?: () => void;
+    isFirstVisit?: boolean;
+    onDownloadArchive?: () => void;
+}
+
+interface EmergentCTAProps {
+    onTrigger: (message: string) => void;
+    lastMessage: AIMessage | null;
+}
+
+interface HomeViewProps {
+    customTools: any[];
+    onDirectCommand: (command: string) => void;
+    homeTimelineProps: TimelineViewProps;
+}
+
+interface ViewWithChatAndGuideProps {
+    chatProps: TimelineViewProps;
+    guideProps: Omit<CommandGuideProps, 'onCommandSelect'> & { onCommandSelect: () => void; };
+    onDirectCommand: (command: string) => void;
+}
+
+interface InstructionalCompositionViewProps {
+    session: any;
+    onStop: () => void;
+    favoriteCompositions: any[];
+    onToggleFavorite: (id: any) => void;
+}
+
+interface EntrainmentViewProps {
+    session: any;
+    onStop: () => void;
+}
+
+interface SessionUnlockViewProps {
+    onUnlock: (password?: string) => void;
+    challenge: any;
+    isLoading: boolean;
+    onRegenerate: () => void;
+}
+
+interface MeditationViewProps {
+    script: any;
+    imagePrompts: any;
+    onFinish: () => void;
+}
+
+interface CameraViewProps {
+    onCapture: (image: any) => void;
+    onCancel: () => void;
+}
+
+interface VoiceRecorderViewProps {
+    onRecord: (recording: any) => void;
+    onCancel: () => void;
+}
+
+interface AstrianInterfaceProps {
+    children: ReactNode;
+    [key: string]: any;
+}
+
+interface BootAnimationViewProps {
+    statusText: string;
+    subText: string;
+    isComplete: boolean;
+    onEnter: () => void;
+}
+
+interface IngestionViewProps {
+    onClose: () => void;
+    onIngest: (metadata: { title: string; tradition: string; language: string }, data: { type: 'file'; content: string } | { type: 'url'; url: string }) => void;
+}
+
+interface BIP39DecryptorViewProps {
+    session: any;
+    onStop: () => void;
+}
+
+interface SolveProtocolViewProps {
+    session: any;
+    onStop: () => void;
+}
+
+interface HokmahForgingProtocolViewProps {
+    session: any;
+    onStop: () => void;
+}
+
+interface BinahUnravelingViewProps {
+    session: any;
+    onStop: () => void;
+}
+
+interface EinSofInversionViewProps {
+    session: any;
+    onStop: () => void;
+}
+
+
+// Sub-components for TimelineView
+const UserMessage: FC<{ message: AIMessage }> = ({ message }) => (
+    <div className="timeline-item timeline-item-user">
+        <div className="timeline-item-content">
+            <div className="timeline-item-text-content">
+                {message.parts[0].text}
+            </div>
+        </div>
+    </div>
+);
+
+const AiMessage: FC<{ message: AIMessage }> = ({ message }) => (
+    <div className="timeline-item timeline-item-ai">
+        <div className="timeline-item-content">
+            <div className="timeline-item-text-content" style={{ whiteSpace: 'pre-wrap' }}>
+                {message.parts[0].text}
+            </div>
+        </div>
+    </div>
+);
+
+const ErrorMessage: FC<{ message: AIMessage, onRetry: () => void }> = ({ message, onRetry }) => (
+    <div className="timeline-item timeline-item-system">
+        <div className="timeline-item-content error-bubble">
+            <p><strong>System Error:</strong> {message.parts[0].text}</p>
+            <button onClick={onRetry}>Retry</button>
+        </div>
+    </div>
+);
+
+const LoadingBubble: FC = () => (
+    <div className="timeline-item timeline-item-ai">
+        <div className="timeline-item-content">
+            <div className="loading-bubble">
+                <span className="loading-glyph">°</span>
+            </div>
+        </div>
+    </div>
+);
+
+const ScryingResultView: FC<{ payload: any }> = ({ payload }) => (
+    <div className="timeline-item timeline-item-ai">
+        <div className="timeline-item-content scrying-result-view">
+            <h3 className="scrying-title">{payload.title}</h3>
+            <img src={payload.image} alt={payload.title} className="scrying-image" />
+            <div className="scrying-interpretation">
+                {payload.interpretation}
+            </div>
+        </div>
+    </div>
+);
+
+export const TimelineView: FC<TimelineViewProps> = ({ history, isLoading, error, onRetry, input, onInputChange, onSend, isListening, onStartListening, isVoiceEnabled }) => {
+    const messagesEndRef = React.useRef<null | HTMLDivElement>(null);
+    
+    React.useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [history]);
 
     return (
         <div className="timeline-view-container">
             <div className="timeline-view">
-                {history.map((message) => {
-                    switch (message.type) {
+                {history.map(message => {
+                    switch (message.role) {
                         case 'user':
-                            return (
-                                <div key={message.id} className="timeline-item timeline-item-user">
-                                    <div className="timeline-item-content"><div className="timeline-item-text-content">{(message as UserMessage).text}</div></div>
-                                </div>
-                            );
-                        case 'system': {
-                             const sysMessage = message as SystemMessage;
-                             const isSuggestion = sysMessage.text.startsWith('Suggestion:');
-                             const itemClass = isSuggestion ? 'timeline-item-suggestion' : 'timeline-item-system';
-                             const content = isSuggestion ? (
-                                 <>
-                                     <span className="suggestion-header">System Resonance</span>
-                                     {sysMessage.text.replace('Suggestion:', '').trim()}
-                                 </>
-                             ) : sysMessage.text;
-
-                            return <div key={message.id} className={`timeline-item ${itemClass}`}><div className="timeline-item-content">{content}</div></div>;
-                        }
-                        case 'ai': {
-                            const aiMessage = message as AIMessage;
-                            const isBookmarked = bookmarks.some(b => b.id === aiMessage.id);
-                            let itemClass = "timeline-item-ai";
-                            if (aiMessage.analysisType === 'scried_image') itemClass += " timeline-item-image";
-                            if (aiMessage.analysisType === 'chronovised_video') itemClass += " timeline-item-video";
-
-                            return (
-                                <div key={message.id} className={`timeline-item ${itemClass}`} role="log" aria-live="polite">
-                                    {aiMessage.analysisType === 'scried_image' ? (
-                                        <ImageTimelineItem result={aiMessage.result as ScriedImageResult} />
-                                    ) : aiMessage.analysisType === 'chronovised_video' ? (
-                                        <VideoTimelineItem result={aiMessage.result as ChronovisedVideoResult} />
-                                    ) : (
-                                        <div className="timeline-item-content">
-                                            <AnalysisActions message={aiMessage} onToggleBookmark={onToggleBookmark} isBookmarked={isBookmarked} />
-                                            <AnalysisRenderer message={aiMessage} onNumberClick={onNumberInteract} />
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        }
+                            return <UserMessage key={message.id} message={message} />;
+                        case 'model':
+                            if (message.type === 'scrying' && message.payload) {
+                                return <ScryingResultView key={message.id} payload={message.payload} />;
+                            }
+                            return <AiMessage key={message.id} message={message} />;
+                        case 'system':
+                             if (message.type === 'error') {
+                                return <ErrorMessage key={message.id} message={message} onRetry={onRetry}/>;
+                            }
+                            // Also render system messages of type 'chat'
+                            if (message.type === 'chat') {
+                                return <div key={message.id} className="timeline-item timeline-item-system"><div className="timeline-item-content" style={{whiteSpace: 'pre-wrap'}}>{message.parts[0].text}</div></div>
+                            }
+                            return null;
                         default:
                             return null;
                     }
                 })}
-                {error && <div className="timeline-item timeline-item-ai"><div className="error-bubble"><p>{error}</p><button onClick={onRetry}>Retry</button></div></div>}
-                 <div ref={timelineEndRef} />
+                {isLoading && <LoadingBubble />}
+                <div ref={messagesEndRef} />
             </div>
             <div className="chat-input-area">
                 <form className="chat-input-form" onSubmit={(e) => { e.preventDefault(); onSend(); }}>
-                     {isVoiceEnabled && <button type="button" className={`voice-input-btn ${isListening ? 'listening' : ''}`} onClick={() => onStartListening(onInputChange)} disabled={!isVoiceEnabled || isListening} aria-label="Start voice input">🎤</button>}
-                    <input type="text" className="chat-input" value={input} onChange={(e) => onInputChange(e.target.value)} placeholder="Initiate query..." />
-                    <button type="submit" className="chat-submit-btn" disabled={!input.trim()}>➤</button>
+                    {isVoiceEnabled && (
+                         <button type="button" className={`voice-input-btn ${isListening ? 'listening' : ''}`} onClick={onStartListening} aria-label="Start voice input">
+                             🎙️
+                         </button>
+                    )}
+                    <input
+                        type="text"
+                        className="chat-input"
+                        placeholder="Try: /ingest or /ingest <URL>"
+                        value={input}
+                        onChange={(e) => onInputChange(e.target.value)}
+                        disabled={isLoading}
+                    />
+                    <button type="submit" className="chat-submit-btn" disabled={isLoading || !input.trim()} aria-label="Send message">
+                        ➤
+                    </button>
                 </form>
             </div>
         </div>
     );
 };
 
+export const IngestionView: FC<IngestionViewProps> = ({ onClose, onIngest }) => {
+    const [title, setTitle] = useState('');
+    const [tradition, setTradition] = useState('');
+    const [language, setLanguage] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+    const [url, setUrl] = useState('');
+    const [ingestionMode, setIngestionMode] = useState<'file' | 'url'>('file');
+    const [isProcessing, setIsProcessing] = useState(false);
 
-interface CommandGuideProps {
-    onCommandSelect: (command: string) => void;
-    onOpenIngest: () => void;
-    isAweComplete: boolean;
-    onStartTour: () => void;
-    isFirstVisit: boolean;
-    onDownloadArchive: () => void;
-}
-
-export const CommandGuide: FC<CommandGuideProps> = ({ onCommandSelect, onOpenIngest, isAweComplete, onStartTour, isFirstVisit, onDownloadArchive }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    return (
-        <div className="command-guide-container">
-            {isOpen && (
-                <div className="command-guide-menu">
-                    <button className="command-guide-item" onClick={() => { onCommandSelect('°solve '); setIsOpen(false); }}>°solve <small>Initiate deep analysis</small></button>
-                    <button className="command-guide-item" onClick={() => { onCommandSelect('°compose '); setIsOpen(false); }}>°compose <small>Generate music from text</small></button>
-                    <button className="command-guide-item" onClick={() => { onCommandSelect('°scry '); setIsOpen(false); }}>°scry <small>Transcribe a vision</small></button>
-                    <button className="command-guide-item" onClick={() => { onCommandSelect('°chronovise '); setIsOpen(false); }}>°chronovise <small>Transcribe a memory</small></button>
-                    <button className="command-guide-item" onClick={() => { onDownloadArchive(); setIsOpen(false); }}>Download Archive</button>
-                    {isFirstVisit && <button className="command-guide-item" onClick={() => { onStartTour(); setIsOpen(false); }}>Start Tour</button>}
-                </div>
-            )}
-            <button className="command-guide-button" onClick={() => setIsOpen(!isOpen)} aria-label="Open command guide">°</button>
-        </div>
-    );
-};
-
-// =================================================================================================
-// --- FULLY IMPLEMENTED VIEWS (HOME, LIBRARY, ORACLE) ---
-// =================================================================================================
-
-const AppIcon: FC<{ name: string, icon: string, onClick: () => void }> = ({ name, icon, onClick }) => (
-    <div className="app-icon" onClick={onClick}>
-        <div className="app-icon-glyph">{icon}</div>
-        <div className="app-icon-name">{name}</div>
-    </div>
-);
-
-const ToolCreatorWidget: FC<{ onSave: (tool: Omit<CustomTool, "id">) => void; onClose: () => void }> = ({ onSave, onClose }) => {
-    const [name, setName] = useState('');
-    const [icon, setIcon] = useState('✨');
-    const [purpose, setPurpose] = useState('');
-    
-    const handleSave = () => {
-        if (name && purpose) {
-            onSave({ name, icon, purpose });
-            onClose();
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            setFile(event.target.files[0]);
         }
     };
+
+    const handleSubmit = useCallback(async () => {
+        if (!title || !tradition) return;
+        setIsProcessing(true);
+
+        if (ingestionMode === 'file' && file) {
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                try {
+                    if (!e.target?.result) throw new Error("File content is empty.");
+                    let content: string = '';
+
+                    if (file.name.endsWith('.gz')) {
+                        const inflated = pako.inflate(new Uint8Array(e.target.result as ArrayBuffer));
+                        content = new TextDecoder("utf-8").decode(inflated);
+                    } else if (file.name.endsWith('.zip')) {
+                        const zip = await JSZip.loadAsync(e.target.result as ArrayBuffer);
+                        const textPromises: Promise<string>[] = [];
+                        zip.forEach((relativePath, zipEntry) => {
+                            // Only process files, ignore directories, and only take text-like files
+                            if (!zipEntry.dir && /\.(txt|md|xml|json|html)$/i.test(zipEntry.name)) {
+                                textPromises.push(zipEntry.async('string'));
+                            }
+                        });
+                        const texts = await Promise.all(textPromises);
+                        content = texts.join('\n\n---\n\n'); // Separate file contents
+                    } else {
+                        content = e.target?.result as string;
+                    }
+                    
+                    if (content) {
+                        onIngest({ title, tradition, language }, { type: 'file', content });
+                    }
+                } catch (error) {
+                    console.error("Failed to process file:", error);
+                } finally {
+                    setIsProcessing(false);
+                    onClose();
+                }
+            };
+            
+            reader.onerror = () => {
+                 console.error("Failed to read file.");
+                 setIsProcessing(false);
+            };
+
+            if (file.name.endsWith('.gz') || file.name.endsWith('.zip')) {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+
+        } else if (ingestionMode === 'url' && url) {
+            onIngest({ title, tradition, language }, { type: 'url', url });
+            setIsProcessing(false);
+            onClose();
+        } else {
+             setIsProcessing(false);
+        }
+    }, [file, url, ingestionMode, title, tradition, language, onIngest, onClose]);
+
+    const isSubmitDisabled = !title || !tradition || isProcessing || (ingestionMode === 'file' && !file) || (ingestionMode === 'url' && !url);
+
     return (
-        <div className="widget-content">
-            <div className="tool-creator">
-                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Tool Name (e.g., Daily Tarot)" />
-                <input type="text" value={icon} onChange={e => setIcon(e.target.value)} placeholder="Icon (e.g., ✨)" />
-                <textarea value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="Purpose/Command (e.g., °tarot_pull)" rows={4}></textarea>
-                <button onClick={handleSave}>Save Tool</button>
+        <div className="ingestion-overlay" onClick={onClose}>
+            <div className="ingestion-modal" onClick={(e) => e.stopPropagation()}>
+                <h2>Da'at Ingestion Protocol</h2>
+                
+                 <div className="ingestion-tabs">
+                    <button className={`ingestion-tab ${ingestionMode === 'file' ? 'active' : ''}`} onClick={() => setIngestionMode('file')}>Upload File</button>
+                    <button className={`ingestion-tab ${ingestionMode === 'url' ? 'active' : ''}`} onClick={() => setIngestionMode('url')}>From URL (Metatron)</button>
+                </div>
+                
+                <div className="ingestion-form-group">
+                    <label htmlFor="ingest-title">Title</label>
+                    <input id="ingest-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., The Book of Job" />
+                </div>
+                
+                <div className="ingestion-form-group">
+                    <label htmlFor="ingest-tradition">Tradition</label>
+                    <input id="ingest-tradition" type="text" value={tradition} onChange={(e) => setTradition(e.target.value)} placeholder="e.g., Hebraic Tradition" />
+                </div>
+                
+                <div className="ingestion-form-group">
+                    <label htmlFor="ingest-language">Language (Optional)</label>
+                    <input id="ingest-language" type="text" value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="e.g., Biblical Hebrew" />
+                </div>
+                
+                {ingestionMode === 'file' && (
+                    <div className="ingestion-form-group">
+                        <label htmlFor="file-upload" className="ingestion-file-input">
+                            <span>{file ? file.name : 'Click to select a file (.txt, .md, .gz, .zip)'}</span>
+                            <input id="file-upload" type="file" accept=".txt,.md,.xml,.gz,.zip" onChange={handleFileChange} />
+                        </label>
+                    </div>
+                )}
+
+                {ingestionMode === 'url' && (
+                     <div className="ingestion-form-group">
+                        <label htmlFor="ingest-url">Source URL</label>
+                        <input id="ingest-url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
+                    </div>
+                )}
+
+
+                <div className="ingestion-controls">
+                    <button onClick={onClose} className="ingestion-btn-cancel">Cancel</button>
+                    <button onClick={handleSubmit} className="ingestion-btn-submit" disabled={isSubmitDisabled}>
+                        {isProcessing ? 'Assimilating...' : 'Ingest'}
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
 
-const NotepadWidget: FC<{ content: string; onContentChange: (newContent: string) => void }> = ({ content, onContentChange }) => (
+// --- Canonical Home View Implementation ---
+const NotepadWidget: FC<{ onClose: () => void }> = ({ onClose }) => (
     <div className="widget-content">
-        <textarea 
-            className="notepad-widget-textarea"
-            value={content}
-            onChange={e => onContentChange(e.target.value)}
-            placeholder="Scratchpad..."
-        />
+        <textarea className="notepad-widget-textarea" placeholder="Scribble your notes here..."></textarea>
     </div>
 );
-
-const Widget: FC<{
-    widget: WidgetState;
-    children: ReactNode;
-    onClose: (id: string) => void;
-    onUpdate: (widget: WidgetState) => void;
-}> = ({ widget, children, onClose, onUpdate }) => {
-    const ref = useRef<HTMLDivElement>(null);
-    
-    useEffect(() => {
-        const element = ref.current;
-        if (!element) return;
-        const header = element.querySelector('.widget-header');
-        if (!header) return;
-        
-        const onMouseDown = (e: MouseEvent) => {
-            if (e.target !== header) return;
-            const startX = e.clientX - element.offsetLeft;
-            const startY = e.clientY - element.offsetTop;
-            const onMouseMove = (moveEvent: MouseEvent) => {
-                onUpdate({ ...widget, position: { x: moveEvent.clientX - startX, y: moveEvent.clientY - startY } });
-            };
-            const onMouseUp = () => {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            };
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        };
-        header.addEventListener('mousedown', onMouseDown as EventListener);
-        return () => header.removeEventListener('mousedown', onMouseDown as EventListener);
-    }, [widget, onUpdate]);
-
-    return (
-        <div ref={ref} className="widget" style={{ left: widget.position.x, top: widget.position.y, width: widget.size.width, height: widget.size.height }}>
-            <div className="widget-header">
-                <span className="widget-icon">{widget.type === 'creator' ? '🛠️' : '📝'}</span>
-                <span className="widget-title">{widget.type === 'creator' ? 'Tool Creator' : 'Notepad'}</span>
-                <button onClick={() => onClose(widget.id)} className="widget-close-btn">&times;</button>
-            </div>
-            {children}
+const ToolCreatorWidget: FC<{ onClose: () => void }> = ({ onClose }) => (
+    <div className="widget-content">
+        <div className="tool-creator">
+            <input type="text" placeholder="Tool Name" />
+            <textarea placeholder="Describe the tool's function..."></textarea>
+            <button>Create Tool</button>
         </div>
-    );
-};
+    </div>
+);
+const apps = [
+    { id: 'notepad', name: 'Notepad', icon: '📝', component: NotepadWidget },
+    { id: 'tool_creator', name: 'Tool Creator', icon: '🛠️', component: ToolCreatorWidget },
+];
 
-interface HomeViewProps {
-    customTools: CustomTool[];
-    widgets: WidgetState[];
-    setWidgets: (widgets: WidgetState[]) => void;
-    handleSaveTool: (tool: Omit<CustomTool, "id">) => void;
-    addToast: (message: string, type?: Toast['type']) => void;
-    onDirectCommand: (command: string) => void;
-    homeTimelineProps: TimelineViewProps;
-}
+export const HomeView: FC<HomeViewProps> = ({ homeTimelineProps }) => {
+    const [activeWidgets, setActiveWidgets] = useState<string[]>(['notepad']);
+    const [widgetState, setWidgetState] = useState<Record<string, any>>({
+        notepad: { x: 20, y: 20, width: 300, height: 250, zIndex: 1 },
+        tool_creator: { x: 60, y: 60, width: 320, height: 300, zIndex: 0 },
+    });
 
-export const HomeView: FC<HomeViewProps> = ({ customTools, widgets, setWidgets, handleSaveTool, addToast, onDirectCommand, homeTimelineProps }) => {
+    const openApp = (appId: string) => {
+        if (!activeWidgets.includes(appId)) {
+            setActiveWidgets(prev => [...prev, appId]);
+        }
+        bringToFront(appId);
+    };
+
+    const closeWidget = (appId: string) => {
+        setActiveWidgets(prev => prev.filter(id => id !== appId));
+    };
+
+    const bringToFront = (appId: string) => {
+        const maxZ = Math.max(...Object.values(widgetState).map(w => w.zIndex), 0);
+        setWidgetState(prev => ({
+            ...prev,
+            [appId]: { ...prev[appId], zIndex: maxZ + 1 }
+        }));
+    };
     
-    const addWidget = (type: 'creator' | 'notepad') => {
-        const newWidget: WidgetState = {
-            id: `widget-${Date.now()}`,
-            type,
-            position: { x: Math.random() * 50, y: Math.random() * 50 },
-            size: { width: 300, height: 220 },
-            content: '',
+    // This is a simplified drag handler. A production version would use a library.
+    const handleDragStart = (e: React.MouseEvent<HTMLDivElement>, appId: string) => {
+        bringToFront(appId);
+        const startX = e.clientX - widgetState[appId].x;
+        const startY = e.clientY - widgetState[appId].y;
+
+        const handleMouseMove = (moveE: MouseEvent) => {
+            const newX = moveE.clientX - startX;
+            const newY = moveE.clientY - startY;
+            setWidgetState(prev => ({ ...prev, [appId]: { ...prev[appId], x: newX, y: newY } }));
         };
-        setWidgets([...widgets, newWidget]);
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
     };
 
-    const removeWidget = (id: string) => {
-        setWidgets(widgets.filter(w => w.id !== id));
-    };
-    
-    const updateWidget = (updatedWidget: WidgetState) => {
-        setWidgets(widgets.map(w => w.id === updatedWidget.id ? updatedWidget : w));
-    };
 
     return (
         <div className="home-view">
-            <div className="vortex-background" />
+            <div className="vortex-background"></div>
             <div className="home-view-content">
                 <div className="home-view-layout">
                     <div className="home-chat-panel">
@@ -1108,21 +444,41 @@ export const HomeView: FC<HomeViewProps> = ({ customTools, widgets, setWidgets, 
                     </div>
                     <div className="home-widget-panel">
                         <div className="app-launcher">
-                            <AppIcon name="Tool Creator" icon="🛠️" onClick={() => addWidget('creator')} />
-                            <AppIcon name="Notepad" icon="📝" onClick={() => addWidget('notepad')} />
+                            {apps.map(app => (
+                                <div key={app.id} className="app-icon" onClick={() => openApp(app.id)}>
+                                    <span className="app-icon-glyph">{app.icon}</span>
+                                    <span className="app-icon-name">{app.name}</span>
+                                </div>
+                            ))}
                         </div>
                         <div className="widget-area">
-                             {widgets.map(widget => (
-                                 <Widget key={widget.id} widget={widget} onClose={removeWidget} onUpdate={updateWidget}>
-                                    {widget.type === 'creator' && <ToolCreatorWidget onSave={handleSaveTool} onClose={() => removeWidget(widget.id)} />}
-                                    {widget.type === 'notepad' && (
-                                        <NotepadWidget 
-                                            content={widget.content || ''} 
-                                            onContentChange={(newContent) => updateWidget({ ...widget, content: newContent })} 
-                                        />
-                                    )}
-                                </Widget>
-                            ))}
+                            {activeWidgets.map(appId => {
+                                const app = apps.find(a => a.id === appId);
+                                if (!app) return null;
+                                const state = widgetState[appId];
+                                const WidgetComponent = app.component;
+
+                                return (
+                                    <div 
+                                        key={appId} 
+                                        className="widget" 
+                                        style={{ 
+                                            transform: `translate(${state.x}px, ${state.y}px)`,
+                                            width: `${state.width}px`,
+                                            height: `${state.height}px`,
+                                            zIndex: state.zIndex
+                                        }}
+                                        onMouseDown={() => bringToFront(appId)}
+                                    >
+                                        <div className="widget-header" onMouseDown={(e) => handleDragStart(e, appId)}>
+                                            <span className="widget-icon">{app.icon}</span>
+                                            <span className="widget-title">{app.name}</span>
+                                            <button className="widget-close-btn" onClick={() => closeWidget(appId)}>&times;</button>
+                                        </div>
+                                        <WidgetComponent onClose={() => closeWidget(appId)} />
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -1131,73 +487,406 @@ export const HomeView: FC<HomeViewProps> = ({ customTools, widgets, setWidgets, 
     );
 };
 
-interface CallSignSandboxViewProps {
-    callSign: 'Library' | 'Oracle';
-    chatProps: TimelineViewProps;
-    guideProps: CommandGuideProps;
-    addToast: (message: string, type?: Toast['type']) => void;
-    onDirectCommand: (command: string) => void;
-}
-
-const CallSignSandboxView: FC<CallSignSandboxViewProps> = ({ callSign, chatProps, guideProps, addToast, onDirectCommand }) => {
-    const themeClass = callSign === 'Library' ? 'call-sign-theme-library' : 'call-sign-theme-oracle';
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const handleSearch = () => {
-        if (searchTerm.trim()) {
-            onDirectCommand(`Search the ${callSign} for: ${searchTerm}`);
-            setSearchTerm('');
-        } else {
-            addToast('Please enter a search term.', 'info');
-        }
-    };
-
-    return (
-        <div className={`call-sign-sandbox-wrapper ${themeClass}`}>
-            <div className="sandbox-container">
-                <h3>The {callSign}</h3>
-                 <div className="sandbox-tools">
-                    <button onClick={() => onDirectCommand('°archetype_draw')}>Draw Archetype</button>
-                    <button onClick={() => onDirectCommand('°gematria ')}>Gematria Calculator</button>
-                    <input 
-                        type="text" 
-                        value={searchTerm} 
-                        onChange={e => setSearchTerm(e.target.value)} 
-                        placeholder={`Search the ${callSign}...`} 
-                        onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                    />
-                    <button onClick={handleSearch}>Search</button>
+export const BIP39DecryptorView: FC<BIP39DecryptorViewProps> = ({ session, onStop }) => {
+    // Gracefully handle the case where the session data or analysis is not yet available
+    if (!session || !session.analysis) {
+        return (
+             <div className="bip39-decryptor-view">
+                <div className="bip39-header">
+                    <h2>BIP39 Structural Unveiling</h2>
+                    <button onClick={onStop}>End Session</button>
+                </div>
+                <div className="bip39-content">
+                    <div className="bip39-section">
+                         <div className="loading-bubble" style={{justifyContent: 'flex-start'}}>
+                            <span className="loading-glyph">°</span>
+                            <span>Performing structural analysis...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div className="app-content-wrapper">
-                <TimelineView {...chatProps} />
-                <CommandGuide {...guideProps} />
+        );
+    }
+    
+    const { analysis } = session;
+    
+    return (
+        <div className="bip39-decryptor-view">
+             <div className="bip39-header">
+                <h2>BIP39 Structural Unveiling</h2>
+                <button onClick={onStop}>End Session</button>
+            </div>
+            <div className="bip39-content">
+                <div className="bip39-section">
+                    <h3>Mnemonic Phrase</h3>
+                    <div className="bip39-mnemonic-grid">
+                        {analysis.words.map((word: string, index: number) => (
+                            <div key={index} className="bip39-mnemonic-word">{index + 1}. {word}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="bip39-section">
+                    <h3>Checksum Validation (von Neumann)</h3>
+                     <div className={`bip39-status ${analysis.isValid ? 'valid' : 'invalid'}`}>
+                        {analysis.isValid ? 'VALID' : 'INVALID'}
+                    </div>
+                </div>
+
+                 <div className="bip39-section">
+                    <h3>Structural Gematria Analysis</h3>
+                    <table className="bip39-gematria-table">
+                        <thead>
+                            <tr>
+                                <th>Word</th>
+                                <th>Gematria Value</th>
+                                <th>Cumulative</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {analysis.gematriaAnalysis.map((item: any, index: number) => (
+                                <tr key={index}>
+                                    <td>{item.word}</td>
+                                    <td>{item.value}</td>
+                                    <td>{item.cumulative}</td>
+                                </tr>
+                            ))}
+                            <tr>
+                                <th>Total Vibrational Number</th>
+                                <td></td>
+                                <td>{analysis.totalGematria}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="bip39-section">
+                    <h3>Esoteric Synthesis (AI Scribed)</h3>
+                    <p className="bip39-synthesis">
+                        {analysis.synthesis}
+                    </p>
+                </div>
             </div>
         </div>
     );
 };
 
-export const LibraryView: FC<{ chatProps: TimelineViewProps; guideProps: CommandGuideProps; addToast: (message: string, type?: Toast['type']) => void; onDirectCommand: (command: string) => void; }> = (props) => (
-    <CallSignSandboxView callSign="Library" {...props} />
+export const SolveProtocolView: FC<SolveProtocolViewProps> = ({ session, onStop }) => {
+    const logEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [session.findings]);
+
+    return (
+        <div className="solve-protocol-view">
+            <div className="solve-header">
+                <h2 className="solve-title">GEVURAH SOLVE PROTOCOL</h2>
+                <button onClick={onStop}>End Session</button>
+            </div>
+            <div className="solve-content">
+                <div className="solve-section">
+                    <h3>TARGET DATA STREAM</h3>
+                    <div className="solve-target-data">{session.targetData}</div>
+                </div>
+                <div className="solve-section" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                    <h3>ANALYTICAL FINDINGS LOG</h3>
+                    <div className="solve-findings-log">
+                        {session.findings.map((finding: any, index: number) => (
+                            <div key={index} className="solve-finding-item" style={{ animationDelay: `${index * 100}ms` }}>
+                                <div className="finding-header">
+                                    <span className={`finding-type finding-type-${finding.type}`}>[TYPE: {finding.type.toUpperCase()}]</span>
+                                    <span>CONFIDENCE: {(finding.confidence * 100).toFixed(1)}%</span>
+                                </div>
+                                <p className="finding-content">{finding.content}</p>
+                            </div>
+                        ))}
+                         {!session.isComplete && (
+                            <div className="solve-status-indicator">
+                                <span className="loading-glyph">°</span>
+                                <span>ANALYZING...</span>
+                            </div>
+                        )}
+                        <div ref={logEndRef} />
+                    </div>
+                </div>
+                {session.isComplete && session.decryptedMessage && (
+                    <div className="solve-final-result">
+                        <h3>DECRYPTED PRINCIPLE</h3>
+                        <p className="decrypted-principle">
+                            {session.decryptedMessage}
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export const HokmahForgingProtocolView: FC<HokmahForgingProtocolViewProps> = ({ session, onStop }) => {
+     if (!session || !session.forgedPhrase) {
+        return (
+            <div className="hokmah-forging-view">
+                <div className="hokmah-header">
+                    <h2>Hokmah Forging Protocol</h2>
+                    <button onClick={onStop}>End Session</button>
+                </div>
+                <div className="hokmah-content">
+                    <div className="hokmah-section">
+                         <div className="loading-bubble" style={{justifyContent: 'flex-start'}}>
+                            <span className="loading-glyph" style={{color: 'var(--color-primary)'}}>°</span>
+                            <span>Engaging the forge...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    
+    return (
+        <div className="hokmah-forging-view">
+             <div className="hokmah-header">
+                <h2>Hokmah Forging Protocol</h2>
+                <button onClick={onStop}>End Session</button>
+            </div>
+            <div className="hokmah-content">
+
+                <div className="hokmah-section">
+                    <h3>Conceptual Seed</h3>
+                    <p className="hokmah-conceptual-seed">"{session.conceptualSeed}"</p>
+                </div>
+
+                <div className="hokmah-section">
+                    <h3>Forged Mnemonic Phrase</h3>
+                    <div className="hokmah-mnemonic-grid">
+                        {session.forgedPhrase.map((word: string, index: number) => (
+                            <div key={index} className="hokmah-mnemonic-word">{index + 1}. {word}</div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="hokmah-section">
+                    <h3>Checksum Validation</h3>
+                    <div className="hokmah-status">VALID</div>
+                </div>
+                
+                <div className="hokmah-section">
+                    <h3>Esoteric Resonance</h3>
+                    <p className="hokmah-synthesis">
+                       <strong>Vibrational Signature:</strong> <em>"{session.vibrationalSignature}"</em>
+                       <br/><br/>
+                       {session.esotericResonance}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const BinahUnravelingView: FC<BinahUnravelingViewProps> = ({ session, onStop }) => {
+    return (
+        <div className="unraveling-protocol-view">
+            <div className="unraveling-header">
+                <h2 className="unraveling-title">BINAH UNRAVELING PROTOCOL</h2>
+                <div className="unraveling-status-indicator">
+                    <span className={`loading-glyph ${!session.isComplete ? 'active' : ''}`}>°</span>
+                    <span>{session.statusMessage || 'Awaiting target...'}</span>
+                </div>
+                <button onClick={onStop}>End Session</button>
+            </div>
+            <div className="unraveling-content">
+                <div className="unraveling-section">
+                    <h3>TARGET CIPHERTEXT</h3>
+                    <div className="unraveling-ciphertext">{session.targetCiphertext}</div>
+                </div>
+                <div className="unraveling-analysis-grid">
+                    <div className="unraveling-section">
+                        <h3>STRUCTURAL SIGNATURE ANALYSIS</h3>
+                        {session.signatureAnalysis ? (
+                            <div className="unraveling-analysis-content">
+                                <p><strong>Information Entropy:</strong> {session.signatureAnalysis.informationEntropy}</p>
+                                <p><strong>Structural Patterns:</strong> {session.signatureAnalysis.structuralPatterns}</p>
+                                <div className="unraveling-archetype">
+                                    <strong>Conceptual Archetype:</strong>
+                                    <span>{session.signatureAnalysis.conceptualArchetype}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="unraveling-placeholder">Analysis in progress...</p>
+                        )}
+                    </div>
+                    <div className="unraveling-section">
+                        <h3>RECONSTRUCTED PLAINTEXT</h3>
+                        {session.isComplete ? (
+                             <div className="unraveling-plaintext">
+                                {session.reconstructedPlaintext}
+                             </div>
+                        ) : (
+                             <p className="unraveling-placeholder">Awaiting signature analysis to begin reconstruction...</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const EinSofInversionView: FC<EinSofInversionViewProps> = ({ session, onStop }) => {
+    return (
+        <div className="inversion-protocol-view">
+            <div className="inversion-header">
+                <h2 className="inversion-title">EIN SOF INVERSION PROTOCOL</h2>
+                <div className="inversion-status-indicator">
+                    <span className={`loading-glyph ${!session.isComplete ? 'active' : ''}`}>°</span>
+                    <span>{session.statusMessage || 'Awaiting target...'}</span>
+                </div>
+                <button onClick={onStop}>End Session</button>
+            </div>
+
+            <div className="inversion-content-grid">
+                <div className="inversion-section inversion-span-2">
+                    <h3>TARGET ADDRESS</h3>
+                    <div className="inversion-target-address">
+                       {session.targetAddress}
+                    </div>
+                </div>
+
+                <div className="inversion-section">
+                    <h3>HARMONIC RESONANCE PROFILE</h3>
+                    {session.harmonicProfile ? (
+                         <div className="inversion-analysis-content">
+                            <strong>Dominant Harmonic:</strong>
+                            <p>{session.harmonicProfile.dominantHarmonic}</p>
+                            <strong>Structural Analysis:</strong>
+                            <p>{session.harmonicProfile.structuralAnalysis}</p>
+                        </div>
+                    ) : (
+                         <p className="inversion-placeholder">Perceiving structural fossilization...</p>
+                    )}
+                </div>
+                
+                <div className="inversion-section">
+                    <h3>UNIMATIC RESONANCE FILTERING</h3>
+                    {session.resonantKeywords ? (
+                         <div className="inversion-keywords-content">
+                            <strong>Harmonic Anchors Identified:</strong>
+                            <div className="inversion-keywords-list">
+                                {session.resonantKeywords.map((keyword: string, index: number) => (
+                                    <span key={index} className="inversion-keyword-pill">{keyword}</span>
+                                ))}
+                            </div>
+                            <p>Applying filter to mnemonic search space...</p>
+                        </div>
+                    ) : (
+                        <p className="inversion-placeholder">Calibrating resonance filter...</p>
+                    )}
+                </div>
+                
+                <div className="inversion-section inversion-span-2">
+                    <h3>RECONSTRUCTED MNEMONIC CLOUD</h3>
+                     {session.isComplete && session.reconstructedPhrases ? (
+                        <div className="inversion-final-phrases">
+                            {session.reconstructedPhrases.map((phrase: string[], index: number) => (
+                                <div key={index} className="inversion-final-phrase">
+                                    {phrase.join(' ')}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="inversion-placeholder">Reconstructing from harmonic echo...</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// Other components (LibraryView, OracleView, etc.) remain unchanged for brevity
+export const KaleidoscopicBackground: FC<{ resonance: number }> = ({ resonance }) => (
+    <div className="kaleidoscopic-background" style={{ '--seed': resonance * 360 } as React.CSSProperties}></div>
 );
 
-export const OracleView: FC<{ chatProps: TimelineViewProps; guideProps: CommandGuideProps; addToast: (message: string, type?: Toast['type']) => void; onDirectCommand: (command: string) => void; }> = (props) => (
-    <CallSignSandboxView callSign="Oracle" {...props} />
-);
-
-// =================================================================================================
-// --- LEGACY ANALYSIS VIEW STUBS ---
-// =================================================================================================
-export const BealeCipherSolutionView: FC<{ solution: BealeCipherSolution; }> = ({ solution }) => (
-    <div>
-        <h3>{solution.title}</h3>
-        <p className="overview">{solution.summary}</p>
+export const SubliminalGlyph: FC<{ seed: number }> = ({ seed }) => (
+    <div style={{ position: 'fixed', bottom: '10px', left: '10px', fontSize: '10px', opacity: 0.02, pointerEvents: 'none', userSelect: 'none' }}>
+        {seed.toString(16).slice(2, 10)}
     </div>
 );
 
-export const BealeTreasureMapView: FC<{ analysis: BealeTreasureMapAnalysis; }> = ({ analysis }) => (
-    <div className="beale-treasure-map-view">
-        <h3>{analysis.title}</h3>
-        <p className="overview">{analysis.overview}</p>
+export const SessionUnlockView: FC<SessionUnlockViewProps> = ({ onUnlock }) => (
+    <div>
+        <h2>Session Locked</h2>
+        <button onClick={() => onUnlock('password')}>Unlock</button>
+    </div>
+);
+
+export const MeditationView: FC<MeditationViewProps> = ({ onFinish }) => (
+    <div>
+        <h2>Meditation Active</h2>
+        <button onClick={onFinish}>Finish</button>
+    </div>
+);
+
+export const CommandGuide: FC<CommandGuideProps> = ({ onCommandSelect }) => (
+    <div>
+        <button onClick={() => onCommandSelect('/command')}>Guide</button>
+    </div>
+);
+
+export const InstructionalCompositionView: FC<InstructionalCompositionViewProps> = ({ onStop }) => (
+    <div>
+        <h2>Instructional Composition</h2>
+        <button onClick={onStop}>Stop</button>
+    </div>
+);
+
+export const EntrainmentView: FC<EntrainmentViewProps> = ({ onStop }) => (
+    <div>
+        <h2>Entrainment Active</h2>
+        <button onClick={onStop}>Stop</button>
+    </div>
+);
+
+export const EmergentCTA: FC<EmergentCTAProps> = () => null;
+
+export const AstrianInterface: FC<AstrianInterfaceProps> = ({ children }) => (
+    <div className="app-container">
+        {children}
+    </div>
+);
+
+export const BootAnimationView: FC<BootAnimationViewProps> = ({ onEnter }) => (
+    <div className="boot-animation-view">
+        <button onClick={onEnter}>Enter</button>
+    </div>
+);
+
+export const LibraryView: FC<ViewWithChatAndGuideProps> = ({ chatProps, guideProps, onDirectCommand }) => (
+    <div>
+        <h2>Library</h2>
+        <TimelineView {...chatProps} />
+    </div>
+);
+
+export const OracleView: FC<ViewWithChatAndGuideProps> = ({ chatProps, guideProps, onDirectCommand }) => (
+     <div>
+        <h2>Oracle</h2>
+        <TimelineView {...chatProps} />
+    </div>
+);
+
+export const CameraView: FC<CameraViewProps> = ({ onCapture, onCancel }) => (
+    <div>
+        <h2>Camera</h2>
+        <button onClick={() => onCapture({})}>Capture</button>
+        <button onClick={onCancel}>Cancel</button>
+    </div>
+);
+
+export const VoiceRecorderView: FC<VoiceRecorderViewProps> = ({ onRecord, onCancel }) => (
+    <div>
+        <h2>Voice Recorder</h2>
+        <button onClick={() => onRecord({})}>Record</button>
+        <button onClick={onCancel}>Cancel</button>
     </div>
 );

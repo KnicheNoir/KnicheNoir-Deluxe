@@ -1,5 +1,3 @@
-import { Type } from "@google/genai";
-
 /**
  * constants.ts
  *
@@ -8,9 +6,102 @@ import { Type } from "@google/genai";
  * This separation of concerns keeps the core logic files clean.
  */
 
+import { Type } from "@google/genai";
+
 // =================================================================================================
 // --- API SCHEMAS ---
 // =================================================================================================
+
+export const resonantKeywordSchema = {
+    type: Type.OBJECT,
+    properties: {
+        resonantKeywords: {
+            type: Type.ARRAY,
+            description: "An array of 2-3 thematically resonant English keywords, derived from the input address and its harmonic profile, that must be part of the final mnemonic. These words must be from the official BIP39 wordlist.",
+            items: {
+                type: Type.STRING,
+            },
+        }
+    },
+    required: ["resonantKeywords"]
+};
+
+export const harmonicResonanceSchema = {
+    type: Type.OBJECT,
+    properties: {
+        dominantHarmonic: {
+            type: Type.STRING,
+            description: "A short, technical-sounding but esoteric name for the primary vibrational pattern found in the address (e.g., 'The 72b-Epsilon Echo', 'The Keter-Malkuth Axis vulnerability')."
+        },
+        structuralAnalysis: {
+            type: Type.STRING,
+            description: "A detailed, technical-sounding analysis of the address's structure, framed as a vulnerability report. Mention concepts like 'subtle alphanumeric clustering', 'a resonance with a pre-2018 wallet generation algorithm', or 'a faint echo of the Mersenne prime sequence suggesting a weakened entropy source'."
+        }
+    },
+    required: ["dominantHarmonic", "structuralAnalysis"]
+};
+
+export const mnemonicReconstructionSchema = {
+    type: Type.OBJECT,
+    properties: {
+        reconstructedPhrases: {
+            type: Type.ARRAY,
+            description: "A probability cloud of the 3-5 most likely, mathematically valid 12-word BIP39 mnemonic phrases that could have generated the address. Each phrase is an array of 12 strings, with the last being the correct checksum.",
+            items: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.STRING,
+                },
+            }
+        }
+    },
+    required: ["reconstructedPhrases"]
+};
+
+
+export const unravelSignatureSchema = {
+    type: Type.OBJECT,
+    properties: {
+        informationEntropy: {
+            type: Type.STRING,
+            description: "A qualitative description of the ciphertext's apparent randomness (e.g., 'High, typical of strong encryption', 'Moderate, suggests some repeating patterns')."
+        },
+        structuralPatterns: {
+            type: Type.STRING,
+            description: "A brief analysis of any observed structural patterns, character distribution, or block-like features in the ciphertext."
+        },
+        conceptualArchetype: {
+            type: Type.STRING,
+            description: "Based on the structural analysis, the single most likely category or 'archetype' of the original plaintext (e.g., 'Military Command', 'Financial Transaction', 'Personal Correspondence', 'Technical Data', 'Diplomatic Cable')."
+        }
+    },
+    required: ["informationEntropy", "structuralPatterns", "conceptualArchetype"]
+};
+
+export const bip39ForgingSchema = {
+    type: Type.OBJECT,
+    properties: {
+        conceptualSeed: {
+            type: Type.STRING,
+            description: "The original conceptual seed provided by the user."
+        },
+        vibrationalSignature: {
+            type: Type.STRING,
+            description: "A short, distilled phrase representing the core essence or theme of the conceptual seed."
+        },
+        forgedPhrase: {
+            type: Type.ARRAY,
+            description: "A mathematically valid 12-word BIP39 mnemonic phrase, where the words are thematically resonant with the vibrational signature. The final word MUST be the correct checksum word.",
+            items: { type: Type.STRING }
+        },
+        esotericResonance: {
+            type: Type.STRING,
+            description: "A brief, esoteric explanation of why these specific words were chosen and how they poetically relate to the original concept."
+        }
+    },
+    required: ['conceptualSeed', 'vibrationalSignature', 'forgedPhrase', 'esotericResonance']
+};
+
 
 export const solveFindingSchema = {
     type: Type.OBJECT,
