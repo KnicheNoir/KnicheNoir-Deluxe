@@ -1,3 +1,5 @@
-// FIX: Replaced placeholder content with an empty module to resolve any potential module resolution errors.
-// This file appears to be unused in the provided context.
+/**
+ * @deprecated This file has been purged as part of the Protocol of Perfect Realization.
+ * All system services are now unified and controlled by the kernel in `hooks.ts`.
+ */
 export {};

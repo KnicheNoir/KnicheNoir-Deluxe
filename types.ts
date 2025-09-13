@@ -12,11 +12,13 @@ export interface ScryingPayload {
 export interface ChatMessage {
     id: string;
     role: 'user' | 'model' | 'system';
-    type: 'chat' | 'scrying' | 'suggestion' | 'error';
+    // FIX: Added 'system' to the type union to allow for system-generated informational messages, resolving a type error in `engine.ts`.
+    type: 'chat' | 'scrying' | 'suggestion' | 'error' | 'system';
     parts: ChatMessagePart[];
     payload?: ScryingPayload;
     isBookmarked?: boolean;
     timestamp?: number;
+    image?: string; // For user-sent images (base64 data URL)
 }
 
 export type AIMessage = ChatMessage;
@@ -35,4 +37,17 @@ export interface LetterformAnalysis {
     archetypalWords: Record<string, string>;
     networkCentrality: number;
     semanticField: string[];
+}
+
+export interface AestheticPayload {
+    id: string; // e.g., "saturn-aesthetic"
+    colors: {
+        background: number;
+        fog: number;
+        primary: number;
+        emissive: number;
+    };
+    geometry: {
+        archetype: 'crystalline' | 'gaseous' | 'liquidic';
+    };
 }
