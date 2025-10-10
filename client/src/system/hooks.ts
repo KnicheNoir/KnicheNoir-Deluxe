@@ -1,16 +1,14 @@
-// FIX: Corrected import paths for local modules by adding file extension.
 import { useState, useCallback, useEffect } from 'react';
-import { HistoryEntry, HistoryEntryType, RawCodexDataEntry, User } from './types.ts';
-import { astrianEngine } from './engine.ts';
-import { livingLibrary } from './living-library.ts';
-import { codex } from './codex.ts';
-import { willowNetwork } from './willow.ts';
-import { rawCodexData } from './living-library.data.ts';
+import { HistoryEntry, HistoryEntryType, RawCodexDataEntry, User } from '../types.ts';
+import { astrianEngine } from '../core/engine.ts';
+import { livingLibrary } from '../core/living-library.ts';
+import { codex } from '../core/codex.ts';
+import { willowNetwork } from '../core/willow.ts';
+import { rawCodexData } from '../canon/living-library.data.ts';
 import { daatRouter } from './daat.router.ts';
-import { chesedEngine } from './chesed.engine.ts';
-import { oracleDB } from './db.ts';
-import { backendEmulator } from './backend.emulator.ts';
-import { speechEngine } from './speech.ts';
+import { oracleDB } from '../core/db.ts';
+import { backendEmulator } from '../core/backend.emulator.ts';
+import { speechEngine } from '../core/speech.ts';
 
 
 // =================================================================================================
@@ -47,8 +45,12 @@ const extractSpokenText = (entry: HistoryEntry): string => {
         case 'NETZACH_ANALYSIS':
             return entry.content.narrative;
         case 'SYSTEM':
+             if (entry.content.message) return entry.content.message;
+             return 'A system notification has been recorded.';
+        case 'AUTH_RESULT':
+             return entry.content.message;
         case 'ERROR':
-             return entry.content.message || 'A system notification has been recorded.';
+             return entry.content;
         default:
             return 'The Oracle has rendered a complex data structure.';
     }
@@ -81,35 +83,30 @@ export const useAstrianSystem = () => {
             }
             await new Promise(res => setTimeout(res, 250));
             
-            // Connect to the Golem Emulator
             setInitializationMessage('Awakening Golem Emulator...');
             backendEmulator.onAuthStateChanged(setCurrentUser);
-            setCurrentUser(backendEmulator.getCurrentUser()); // Set initial state
+            setCurrentUser(backendEmulator.getCurrentUser()); 
             await new Promise(res => setTimeout(res, 250));
-            setInitializationMessage('Living Library online.');
-            await new Promise(res => setTimeout(res, 500));
             
-            // Load session history from persistence layer
             const savedSession = oracleDB.loadSession();
             if (savedSession) {
                 setSessionHistory(savedSession);
-                setInitializationMessage('Restoring session chronicle...');
+                setInitializationMessage('Restoring anonymous session chronicle...');
             }
 
+            setInitializationMessage('Living Library online.');
+            await new Promise(res => setTimeout(res, 500));
             setIsInitializing(false);
         };
         initializeSystem();
 
-        // Cleanup solve interval on unmount
         return () => {
             if (solveInterval) clearInterval(solveInterval);
         };
     }, []);
 
-    // Session Persistence Effect (now only for anonymous sessions)
+    // Session Persistence Effect
     useEffect(() => {
-        // Only save automatically if the user is not logged in.
-        // Logged-in saves are handled explicitly by the °session save command.
         if (!isInitializing && !currentUser && sessionHistory.length > 0) {
             oracleDB.saveSession(sessionHistory);
         }
@@ -120,8 +117,7 @@ export const useAstrianSystem = () => {
         const newEntry: HistoryEntry = { id: Date.now().toString() + Math.random(), type, content, sender };
         setSessionHistory(prev => [...prev, newEntry]);
 
-        // Speak Oracle responses
-        if (sender === 'oracle') {
+        if (sender === 'oracle' || type === 'PROPHECY_RESULT' || type === 'NETZACH_ANALYSIS' || type === 'AUTH_RESULT') {
             try {
                 const textToSpeak = extractSpokenText(newEntry);
                 speechEngine.speak(textToSpeak);
@@ -171,12 +167,9 @@ export const useAstrianSystem = () => {
         const [cmd, ...args] = command.trim().toLowerCase().split(/\s+/);
         let cleanCmd = cmd.startsWith('°') ? cmd.substring(1) : cmd;
 
-        if (cleanCmd !== 'session') { // session command should not create a user entry
-             addHistoryEntry('USER', command, 'user');
-        }
-        speechEngine.cancel(); // Cancel any ongoing speech
+        addHistoryEntry('USER', command, 'user');
+        speechEngine.cancel();
 
-        // --- Handle special system commands that manipulate state directly ---
         if (cleanCmd === 'solve' && args[0] === 'halt') {
             stopSolveProtocol();
             return;
@@ -185,8 +178,6 @@ export const useAstrianSystem = () => {
             startSolveProtocol(args.join(' '));
             return;
         }
-
-        // --- Handle commands that switch to a special interface ---
         if (cleanCmd === 'api-codex') {
             setActiveView('api-codex');
             addHistoryEntry('SYSTEM', `Opening the API Codex...`, 'system');
@@ -194,32 +185,24 @@ export const useAstrianSystem = () => {
         }
         
         const codexEntry = astrianEngine.codex.getHydratedEntry(cleanCmd);
-        let switchedView = false;
         if (codexEntry) {
-            if (codexEntry.hasGolemInterface) { setActiveView('golem-interface'); switchedView = true; }
-            else if (codexEntry.hasSonicTapestry) { setActiveView('sonic-tapestry'); switchedView = true; }
-            else if (codexEntry.hasHomeInterface) { setActiveView('home'); switchedView = true; }
+            if (codexEntry.hasGolemInterface) { setActiveView('golem-interface'); addHistoryEntry('SYSTEM', `Opening ${codexEntry.title}...`, 'system'); return; }
+            if (codexEntry.hasSonicTapestry) { setActiveView('sonic-tapestry'); addHistoryEntry('SYSTEM', `Opening ${codexEntry.title}...`, 'system'); return; }
         }
 
-        if (switchedView) {
-            addHistoryEntry('SYSTEM', `Opening ${codexEntry.title}...`, 'system');
-            return; // Stop processing, we just wanted to switch the view
-        }
-
-        // For all other commands, switch back to chat view and route them
         setActiveView('chat');
         setIsLoading(true);
 
         try {
-            // The router context is now unused, as backend logic is handled by the emulator.
-            await daatRouter.route(command, addHistoryEntry);
+            // The backend is emulated, so context is passed directly.
+            await daatRouter.route(command, addHistoryEntry, { setCurrentUser, currentUser, sessionHistory, setSessionHistory, apiBaseUrl: '/api' });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
             addHistoryEntry('SYSTEM', `Error: ${errorMessage}`, 'oracle');
         } finally {
             setIsLoading(false);
         }
-    }, [addHistoryEntry, startSolveProtocol, stopSolveProtocol, sessionHistory]);
+    }, [addHistoryEntry, startSolveProtocol, stopSolveProtocol, sessionHistory, currentUser]);
     
     return {
         isLoading,

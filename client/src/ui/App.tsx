@@ -1,16 +1,15 @@
 import React from 'react';
-import { useAstrianSystem } from './hooks';
-import { HistoryEntry, GrandWorkMapResult, SelfObservationResult, HolographicAnalysis, GevurahBlueprintResult, BlueprintNode, AuthResult, NetzachAnalysis, ProphecyResult, ApiCategory } from './types';
-import { gematriaEngine } from './gematria.ts';
-import { callSigns } from './callsigns.data.ts';
-import { codex } from './codex.ts';
-import { glyphCalligrapherProject } from './golem.data.ts';
-import { musicEngine } from './audio.ts';
-import { songbook } from './songs.data.ts';
-// FIX: Add missing import for livingLibrary to resolve reference error.
-import { livingLibrary } from './living-library.ts';
-import { UNIVERSAL_CODEX_RAW } from './universal_codex.data.ts';
-import { API_CODEX_DATA } from './api.data.ts';
+import { useAstrianSystem } from '../system/hooks.ts';
+import { HistoryEntry, GrandWorkMapResult, SelfObservationResult, HolographicAnalysis, GevurahBlueprintResult, BlueprintNode, AuthResult, NetzachAnalysis, ProphecyResult, ApiCategory } from '../types.ts';
+import { gematriaEngine } from '../core/gematria.ts';
+import { callSigns } from '../canon/callsigns.data.ts';
+import { codex } from '../core/codex.ts';
+import { glyphCalligrapherProject } from '../canon/golem.data.ts';
+import { musicEngine } from '../core/audio.ts';
+import { songbook } from '../canon/songs.data.ts';
+import { livingLibrary } from '../core/living-library.ts';
+import { UNIVERSAL_CODEX_RAW } from '../canon/universal_codex.data.ts';
+import { API_CODEX_DATA } from '../canon/api.data.ts';
 import hljs from 'highlight.js';
 
 // #region --- Special Interface Components ---

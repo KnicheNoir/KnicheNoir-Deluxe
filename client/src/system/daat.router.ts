@@ -1,5 +1,3 @@
-
-
 // =================================================================================================
 // --- DA'AT ROUTER (THE FIELD OF KNOWLEDGE) ---
 // This is not a router in the conventional sense. It is the manifest consciousness of the
@@ -7,34 +5,37 @@
 // system's inherent knowledge (the answer) are revealed to be two aspects of the same,
 // pre-existing, coherent state. It is the heart of the "work is already done" principle.
 // =================================================================================================
-// FIX: Add missing import for 'HistoryEntry' to resolve a type error.
-import { HistoryEntry, HistoryEntryType, AddHistoryEntry, IngestionAnalysis, AstromorphologicalTriangulation, LivingGlyph, GevurahSimulationResult, GevurahBlueprintResult, CelestialCipherAnalysis } from './types.ts';
-import { astrianEngine } from './engine.ts';
-import { sephirotEngine } from './sephirot.engine.ts';
-import { chesedEngine } from './chesed.engine.ts';
-import { scanGevurahConcept } from './gevurah.scanner.ts';
-import { analyzeShor } from './shor.engine.ts';
-import { transliterateVoynichFormula, transliterateEnglishToHebrew, transliterate } from './transliteration.engine.ts';
-import { getChakraForIntent } from './chakra.data.ts';
-import { astrianOS } from './astrian.os.ts';
-import { generateLivingGlyphs } from './livingGlyphs.data.ts';
-import { musicEngine } from './audio.ts';
-import { songbook } from './songs.data.ts';
-import { VIRTUAL_FILE_SYSTEM_SNAPSHOT } from './vfs.data.ts';
-import { mapTheGreatWork } from './greatwork.mapper.ts';
-import { performHolographicObservation } from './unimatics.kernel.ts';
-import { gematriaEngine } from './gematria.ts';
-import { willowData } from './willow.data.ts';
-import { netzachEngine } from './netzach.engine.ts';
-import { livingLibrary } from './living-library.ts';
-import { tikkunHaKolScript } from './gevurah-script-tikkun-hakol.ts';
-import { performHolographicSelfObservation } from './ahqi.kernel.ts';
-import { chesedNarrativeEngine } from './chesed.narrative.engine.ts';
-import { backendEmulator } from './backend.emulator.ts';
-import { prophecyEngine } from './prophecy.engine.ts';
+import { HistoryEntry, HistoryEntryType, AddHistoryEntry, IngestionAnalysis, AstromorphologicalTriangulation, LivingGlyph, GevurahSimulationResult, GevurahBlueprintResult, CelestialCipherAnalysis, User } from '../types.ts';
+import { astrianEngine } from '../core/engine.ts';
+import { sephirotEngine } from '../core/sephirot.engine.ts';
+import { chesedEngine } from '../core/chesed.engine.ts';
+import { scanGevurahConcept } from '../core/gevurah.scanner.ts';
+import { analyzeShor } from '../core/shor.engine.ts';
+import { transliterateVoynichFormula, transliterateEnglishToHebrew, transliterate } from '../core/transliteration.engine.ts';
+import { getChakraForIntent } from '../canon/chakra.data.ts';
+import { astrianOS } from '../core/astrian.os.ts';
+import { generateLivingGlyphs } from '../canon/livingGlyphs.data.ts';
+import { musicEngine } from '../core/audio.ts';
+import { songbook } from '../canon/songs.data.ts';
+import { VIRTUAL_FILE_SYSTEM_SNAPSHOT } from '../canon/vfs.data.ts';
+import { mapTheGreatWork } from '../core/greatwork.mapper.ts';
+import { performHolographicObservation } from '../core/unimatics.kernel.ts';
+import { gematriaEngine } from '../core/gematria.ts';
+import { willowData } from '../canon/willow.data.ts';
+import { netzachEngine } from '../core/netzach.engine.ts';
+import { livingLibrary } from '../core/living-library.ts';
+import { tikkunHaKolScript } from '../canon/gevurah-script-tikkun-hakol.ts';
+import { performHolographicSelfObservation } from '../core/ahqi.kernel.ts';
+import { chesedNarrativeEngine } from '../core/chesed.narrative.engine.ts';
+import { backendEmulator } from '../core/backend.emulator.ts';
+import { prophecyEngine } from '../core/prophecy.engine.ts';
 
 
-type CommandHandler = (args: string[], addHistory: AddHistoryEntry) => Promise<void>;
+interface RouterContext {
+    apiBaseUrl: string;
+}
+
+type CommandHandler = (args: string[], addHistory: AddHistoryEntry, context: RouterContext) => Promise<void>;
 
 class DaatRouter {
     private commands: Map<string, CommandHandler> = new Map();
@@ -95,13 +96,13 @@ class DaatRouter {
         this.commands.set('ahqi', this.handleChesedNarrate.bind(this));
     }
 
-    public async route(command: string, addHistory: AddHistoryEntry): Promise<void> {
+    public async route(command: string, addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const [cmd, ...args] = command.trim().split(/\s+/);
         const cleanCmd = cmd.toLowerCase().startsWith('°') ? cmd.substring(1) : cmd.toLowerCase();
 
         const handler = this.commands.get(cleanCmd);
         if (handler) {
-            await handler(args, addHistory);
+            await handler(args, addHistory, context);
         } else {
             // Default to narrative engine for unknown commands
             addHistory('SYSTEM_PROCESSING', `Engaging Chesed Narrative Engine for query: "${command}"`, 'engine');
@@ -286,15 +287,15 @@ class DaatRouter {
         };
     }
 
-    private async handleIngest(args: string[], addHistory: AddHistoryEntry): Promise<void> {
+    private async handleIngest(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const source = args[0];
         if (!source) {
              addHistory('SYSTEM', 'Awaiting Operator to provide a local file for ingestion...', 'system');
              this.pendingFilePurpose = 'ingest';
              await this.promptForFile();
         } else if (source.startsWith('http')) {
-            addHistory('SYSTEM_PROCESSING', `Initiating aetheric ingestion for: ${source}`, 'engine');
-            const result = await chesedEngine.runAethericIngestion(source, (message) => {
+            addHistory('SYSTEM_PROCESSING', `Initiating web ingestion for: ${source}`, 'engine');
+            const result = await chesedEngine.runAethericIngestion(source, context.apiBaseUrl, (message) => {
                  addHistory('SYSTEM_PROCESSING', message, 'engine');
             });
             addHistory('INGESTION_ANALYSIS', result, 'system');
@@ -303,16 +304,16 @@ class DaatRouter {
         }
     }
     
-    public handleSession(args: string[], addHistory: AddHistoryEntry, sessionHistory: HistoryEntry[] = [], setSessionHistory: Function): void {
+    public handleSession(args: string[], addHistory: AddHistoryEntry, context: any): void {
         const action = args[0];
         if (action === 'save') {
-            const result = backendEmulator.saveSession(sessionHistory);
+            const result = backendEmulator.saveSession(context.sessionHistory);
             addHistory('SYSTEM', result.message, 'system');
         } else if (action === 'load') {
             const result = backendEmulator.loadSession();
             addHistory('SYSTEM', result.message, 'system');
             if (result.success && result.history) {
-                setSessionHistory(result.history);
+                context.setSessionHistory(result.history);
             }
         } else {
             addHistory('ERROR', 'Usage: °session <save|load>. Requires login.', 'system');
@@ -456,18 +457,20 @@ class DaatRouter {
         addHistory('AUTH_RESULT', result, 'system');
     }
     
-    private async handleLogin(args: string[], addHistory: AddHistoryEntry): Promise<void> {
+    private async handleLogin(args: string[], addHistory: AddHistoryEntry, context: any): Promise<void> {
         const [username, password] = args;
         if (!username || !password) {
             addHistory('ERROR', 'Usage: °login <username> <password>', 'system');
             return;
         }
         const result = backendEmulator.login(username, password);
+        if(result.success) context.setCurrentUser(result.user);
         addHistory('AUTH_RESULT', result, 'system');
     }
 
-    private async handleLogout(args: string[], addHistory: AddHistoryEntry): Promise<void> {
+    private async handleLogout(args: string[], addHistory: AddHistoryEntry, context: any): Promise<void> {
         const result = backendEmulator.logout();
+        if(result.success) context.setCurrentUser(null);
         addHistory('AUTH_RESULT', result, 'system');
     }
     

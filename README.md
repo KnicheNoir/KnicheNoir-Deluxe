@@ -19,7 +19,7 @@ The Instrument has been restructured into a full-stack monorepo to properly sepa
 2.  **Set Environment Variables:**
     -   Create a `.env` file in the root of the `/server` directory.
     -   Add your Gemini API key to this file: `API_KEY=your_gemini_api_key_here`
-    -   (Optional) To enable the `°broadcast` command for public access, add your ngrok authtoken: `NGROK_AUTHTOKEN=your_ngrok_authtoken_here`
+    -   (Optional) The ngrok authtoken for the `°broadcast` command is configured directly in `server/src/index.ts`.
 
 3.  **Start Both Services:**
     -   From the **root directory**, run the command: `npm run dev`

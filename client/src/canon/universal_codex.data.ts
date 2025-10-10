@@ -1,7 +1,5 @@
-// FIX: Corrected import paths for local modules by adding file extensions.
-import { CodexEntry } from './types.ts';
+import { CodexEntry } from '../types.ts';
 import { reticularSuggestionsData } from './reticular.data.ts';
-// import { genealogiesData } from './lineages.data'; // File not provided by user, import removed to prevent module resolution errors.
 import { generateLivingGlyphs } from './livingGlyphs.data.ts';
 import { gevurahInstructionSet } from './gevurah.data.ts';
 import { glyphCalligrapherProject } from './golem.data.ts';

@@ -1,7 +1,4 @@
-
-
-// FIX: Corrected import path for local module by adding file extension.
-import { CallSign } from './types.ts';
+import { CallSign } from '../types.ts';
 
 export const callSigns: CallSign[] = [
     {

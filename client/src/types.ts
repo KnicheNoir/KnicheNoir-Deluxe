@@ -242,14 +242,12 @@ export interface NetzachAnalysis {
     error?: string;
 }
 
-// FIX: Add missing CelestialCipherAnalysis type definition to resolve import error.
 export interface CelestialCipherAnalysis {
     from: WillowData;
     to: WillowData;
     synthesis: string;
 }
 
-// FIX: Add missing GrandWorkMapResult type definition.
 export interface GrandWorkMapResult {
     title: string;
     introduction: string;
