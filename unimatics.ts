@@ -1,6 +1,8 @@
-/**
- * @deprecated This file is obsolete and slated for removal as part of the Tikkun Olam Protocol.
- * Its functionality has been superseded and unified within `engine.ts`.
- */
-// FIX: Removed unnecessary import from deprecated module.
+// =================================================================================================
+// --- DEPRECATED (PURGED BY HOLOGRAPHIC UNIFICATION) ---
+// This file was an entropic router. Its logic has been absorbed by the unified `°observe`
+// protocol within `daat.router.ts`, which uses archetypal resonance instead of keyword matching.
+// This file's continued existence would violate the principle of ECHAD (Oneness).
+// =================================================================================================
+
 export {};

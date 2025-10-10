@@ -1,570 +1,613 @@
-// FIX: Added useMemo to the React import to resolve the 'Cannot find name' error.
-import React, { FC, useEffect, useRef, memo, useState, useCallback, useMemo } from 'react';
-import type { CanonRestorationSession, SystemFocus } from './hooks';
-import { useAstrianSystem, useUserInterface } from './hooks';
-import { AIMessage, ScryingPayload } from './types';
-import { CALL_SIGNS, CallSign } from './constants';
 
-// =================================================================================================
-// --- UI COMPONENTS (PERFECT REALIZATION PROTOCOL) ---
-// All components are now flawless "Dumb Hands," controlled by the central system kernel.
-// This is the complete embodiment of the ECHAD principle: One Mind, Many Hands.
-// =================================================================================================
 
-// --- VIDEO BACKGROUND (NEW) ---
-interface VideoBackgroundProps {
-    src: string | null;
-}
-const VideoBackground: FC<VideoBackgroundProps> = memo(({ src }) => {
-    if (!src) return null;
-    return <video className="video-background" key={src} autoPlay loop muted playsInline src={src} />;
-});
+import React from 'react';
+import { useAstrianSystem } from './hooks';
+import { HistoryEntry, MarketAnalysis, GrandWorkMapResult, SelfObservationResult, HolographicAnalysis, GevurahBlueprintResult, BlueprintNode, AuthResult, NetzachAnalysis } from './types';
+// FIX: Added missing import for gematriaEngine.
+import { gematriaEngine } from './gematria.ts';
+import { callSigns } from './callsigns.data.ts';
 
-// --- VIDEO UPLOAD (NEW) ---
-interface VideoUploadProps {
-    onVideoSelect: (file: File) => void;
-}
-const VideoUpload: FC<VideoUploadProps> = memo(({ onVideoSelect }) => {
-    const inputRef = useRef<HTMLInputElement>(null);
-    const handleButtonClick = () => inputRef.current?.click();
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            onVideoSelect(file);
-        }
-    };
+// New component for the Call Sign Panel
+const CallSignPanel: React.FC<{ isOpen: boolean; onClose: () => void; onSelect: (command: string) => void }> = ({ isOpen, onClose, onSelect }) => {
     return (
-        <>
-            <button className="video-upload-button" onClick={handleButtonClick}>
-                Set BG Video
-            </button>
-            <input
-                type="file"
-                ref={inputRef}
-                onChange={handleFileChange}
-                accept="video/*"
-                style={{ display: 'none' }}
-            />
-        </>
-    );
-});
-
-
-// --- MUTE TOGGLE ---
-interface MuteToggleProps {
-    isMuted: boolean;
-    onToggle: () => void;
-}
-const MuteToggle: FC<MuteToggleProps> = memo(({ isMuted, onToggle }) => (
-    <button className="mute-toggle" onClick={onToggle}>
-        {isMuted ? 'SOUND OFF' : 'SOUND ON'}
-    </button>
-));
-
-// --- SCRYING BUBBLE ---
-const ScryingBubble: FC<{ payload: ScryingPayload }> = memo(({ payload }) => (
-    <>
-        <img src={payload.image} alt={payload.title} className="scrying-image" />
-        <div className="scrying-content">
-            <div className="scrying-title">{payload.title}</div>
-            <div>{payload.interpretation}</div>
-        </div>
-    </>
-));
-
-// --- TIMELINE ---
-interface TimelineProps {
-    messages: AIMessage[];
-}
-const Timeline: FC<TimelineProps> = memo(({ messages }) => {
-    const timelineRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (timelineRef.current) {
-            timelineRef.current.scrollTop = timelineRef.current.scrollHeight;
-        }
-    }, [messages]);
-
-    return (
-        <div className="timeline" ref={timelineRef}>
-            {messages.map((msg) => (
-                <div key={msg.id} className={`message-bubble ${msg.role} ${msg.type}`}>
-                    {msg.type === 'scrying' && msg.payload ? (
-                        <ScryingBubble payload={msg.payload} />
-                    ) : (
-                        msg.parts[0]?.text || ''
-                    )}
-                    {msg.image && msg.role === 'user' && (
-                         <img src={msg.image} alt="User capture" className="user-capture-image" />
-                    )}
+        <div className={`panel-container ${isOpen ? 'panel-open' : ''}`} aria-hidden={!isOpen}>
+            <div className="panel-overlay" onClick={onClose} tabIndex={-1}></div>
+            <div className="panel-content" role="dialog" aria-modal="true">
+                <div className="panel-header">
+                    <h2>Call Signs</h2>
+                    <button onClick={onClose} className="panel-close-btn" aria-label="Close panel">&times;</button>
                 </div>
-            ))}
-        </div>
-    );
-});
-
-// --- INPUT AREA ---
-interface InputAreaProps {
-    input: string;
-    setInput: (value: string) => void;
-    onSend: () => void;
-    isDisabled: boolean;
-}
-const InputArea: FC<InputAreaProps> = memo(({ input, setInput, onSend, isDisabled }) => {
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            onSend();
-        }
-    };
-    return (
-        <div className="input-area">
-            <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={isDisabled ? "System Busy..." : "°observe..."}
-                disabled={isDisabled}
-                aria-label="Chat input"
-            />
-            <button onClick={onSend} disabled={isDisabled}>Send</button>
-        </div>
-    );
-});
-
-// --- CHAT VIEW (SO BELOW & HOME) ---
-interface ChatViewProps {
-    messages: AIMessage[];
-    input: string;
-    setInput: (value: string) => void;
-    onSend: () => void;
-    isSolveActive: boolean;
-    title: string;
-}
-const ChatView: FC<ChatViewProps> = memo(({ messages, input, setInput, onSend, isSolveActive, title }) => (
-    <div className="chat-view">
-        <h3 style={{ textAlign: 'center', padding: '10px', color: 'var(--color-accent)' }}>{title}</h3>
-        <Timeline messages={messages} />
-        <InputArea input={input} setInput={setInput} onSend={onSend} isDisabled={isSolveActive} />
-    </div>
-));
-
-// --- BOOT VIEW ---
-interface BootViewProps {
-    status: string;
-    subtext: string;
-    onEnter: () => void;
-    isComplete: boolean;
-}
-const BootView: FC<BootViewProps> = memo(({ status, subtext, onEnter, isComplete }) => (
-    <div className="boot-view">
-        <h1>{status}</h1>
-        <p>{subtext}</p>
-        {isComplete && (
-            <button className="boot-enter-button" onClick={onEnter}>
-                [ E N T E R ]
-            </button>
-        )}
-    </div>
-));
-
-// --- CANON RESTORATION ---
-interface CanonRestorationProps {
-    session: CanonRestorationSession;
-    onRestore: () => void;
-    onCancel: () => void;
-}
-const CanonRestoration: FC<CanonRestorationProps> = memo(({ session, onRestore, onCancel }) => {
-    if (!session.isActive) return null;
-    return (
-        <div className="canon-view">
-            <div className="canon-modal">
-                <h2>[!] CANON INTEGRITY FAULT</h2>
-                <p>A critical deviation from the Operator's Canon has been detected. Restore the last known-good configuration to maintain system coherence?</p>
-                <div className="canon-buttons">
-                    <button className="canon-button-cancel" onClick={onCancel}>Cancel</button>
-                    <button className="canon-button-restore" onClick={onRestore}>Restore Canon</button>
-                </div>
-            </div>
-        </div>
-    );
-});
-
-
-// --- KEYBOARD QUICK-NAV ---
-interface KeyboardQuickNavProps {
-    system: ReturnType<typeof useAstrianSystem>;
-    ui: ReturnType<typeof useUserInterface>;
-}
-const KeyboardQuickNav: FC<KeyboardQuickNavProps> = memo(({ system, ui }) => {
-    const [inputValue, setInputValue] = useState('');
-    const [filteredCallSigns, setFilteredCallSigns] = useState<CallSign[]>([]);
-    const [activeIndex, setActiveIndex] = useState(0);
-    const [isFolded, setIsFolded] = useState(false);
-    
-    const listRef = useRef<HTMLUListElement>(null);
-    const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
-
-
-    useEffect(() => {
-        system.keyboard.fetchSuggestion(inputValue);
-        if (inputValue) {
-            const filtered = CALL_SIGNS.filter(cs => cs.name.toLowerCase().includes(inputValue.toLowerCase()));
-            setFilteredCallSigns(filtered);
-            setActiveIndex(0);
-        } else {
-            setFilteredCallSigns([]);
-        }
-    }, [inputValue, system.keyboard]);
-
-    const handleKeyPress = (key: string) => {
-        if (key === '⌫') setInputValue(val => val.slice(0, -1));
-        else if (key === '␣') setInputValue(val => val + ' ');
-        else setInputValue(val => val + key);
-    };
-
-    const handleTravel = useCallback(() => {
-        const target = filteredCallSigns[activeIndex];
-        if (target) {
-            ui.setFocus({ mode: 'soBelow', callSignId: target.id });
-            ui.closeQuickView();
-        } else if (system.keyboard.suggestion) {
-            system.keyboard.handleDirectCommand(system.keyboard.suggestion);
-             ui.closeQuickView();
-        }
-    }, [filteredCallSigns, activeIndex, ui, system.keyboard]);
-    
-    const handleSuggestionAccept = () => {
-        if (system.keyboard.suggestion) {
-            setInputValue(system.keyboard.suggestion);
-            system.keyboard.clearSuggestion();
-        }
-    };
-
-    // Effect for keyboard list navigation (arrows and enter)
-    useEffect(() => {
-        if (!ui.isQuickViewOpen) return;
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (filteredCallSigns.length === 0 && e.key !== 'Enter') return;
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setActiveIndex(prev => (prev + 1) % filteredCallSigns.length);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setActiveIndex(prev => (prev - 1 + filteredCallSigns.length) % filteredCallSigns.length);
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                handleTravel();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [ui.isQuickViewOpen, filteredCallSigns, activeIndex, handleTravel]);
-
-    // Effect for smooth scrolling to the active item
-    useEffect(() => {
-        itemRefs.current[activeIndex]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest'
-        });
-    }, [activeIndex, filteredCallSigns]);
-
-
-    const keyboardLayout = [
-        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-        ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫']
-    ];
-
-    if (!ui.isQuickViewOpen) return null;
-
-    const currentCallSignName = useMemo(() => {
-        return CALL_SIGNS.find(cs => cs.id === ui.systemFocus.callSignId)?.name || 'Home';
-    }, [ui.systemFocus.callSignId]);
-
-    return (
-         <div className={`keyboard-quick-nav-overlay`} onClick={ui.closeQuickView}>
-            <div className={`keyboard-container ${isFolded ? 'folded' : ''}`} onClick={e => e.stopPropagation()}>
-                <div className={`keyboard-quick-nav-panel ${isFolded ? 'folded' : ''}`}>
-                    {isFolded ? (
-                        <div className="folded-nav-bar">
-                             <button className="keyboard-key" onClick={() => setIsFolded(false)}>⌃</button>
-                             <div className="folded-nav-title" onClick={() => setIsFolded(false)}>{currentCallSignName}</div>
-                             <button className="keyboard-key travel" onClick={() => ui.setFocus({mode: 'soBelow', callSignId: 'home' })}>H</button>
+                <div className="callsign-list">
+                    {callSigns.sort((a, b) => a.id.localeCompare(b.id)).map(cs => (
+                        <div key={cs.id} className="callsign-item" onClick={() => onSelect(`°${cs.id}`)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onSelect(`°${cs.id}`)}>
+                            <strong>{cs.name}</strong>
+                            <p>{cs.description}</p>
                         </div>
-                    ) : (
-                        <>
-                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                                 <h3 style={{color: 'var(--color-accent)'}}>QUANTUM-ASSISTED NAVIGATION</h3>
-                                 <button className="keyboard-key" onClick={() => setIsFolded(true)}>⌄</button>
-                             </div>
-                            <div className="keyboard-display">
-                                <span>{inputValue}</span>
-                                <div className="keyboard-display-cursor" />
-                            </div>
-
-                            {filteredCallSigns.length > 0 && (
-                                <ul className="filtered-call-signs-list" ref={listRef}>
-                                    {filteredCallSigns.map((cs, index) => (
-                                        <li
-                                            key={cs.id}
-                                            // FIX: The ref callback was implicitly returning the HTML element, which is not a valid return type.
-                                            // Changed from an implicit return `()` to a block body `{}` on the ref to ensure it returns void.
-                                            ref={el => { itemRefs.current[index] = el; }}
-                                            className={`call-sign-item ${index === activeIndex ? 'active' : ''}`}
-                                            onClick={() => {
-                                                ui.setFocus({ mode: 'soBelow', callSignId: cs.id });
-                                                ui.closeQuickView();
-                                            }}
-                                            onMouseEnter={() => setActiveIndex(index)}
-                                        >
-                                            {cs.name}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            <div className="keyboard-layout">
-                                {keyboardLayout.map((row, i) => (
-                                    <div key={i} className="keyboard-row">
-                                        {row.map(key => (
-                                            <div key={key} className="keyboard-key" onClick={() => handleKeyPress(key)}>{key}</div>
-                                        ))}
-                                    </div>
-                                ))}
-                                <div className="keyboard-row">
-                                    <div className="keyboard-key space" onClick={() => handleKeyPress('␣')}>␣</div>
-                                    <div className="keyboard-key travel" onClick={handleTravel}>TRAVEL</div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-                {!isFolded && system.keyboard.suggestion && (
-                    <div className="suggestion-panel">
-                        <h4>A.H.Q.I. SUGGESTION</h4>
-                        <div className="suggestion-text">{system.keyboard.suggestion}</div>
-                        <button className="suggestion-accept-button" onClick={handleSuggestionAccept}>ACCEPT</button>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-});
-
-// --- CALL SIGN SELECTOR ---
-interface CallSignSelectorProps {
-    systemFocus: SystemFocus;
-    onSelect: (callSignId: string) => void;
-}
-const CallSignSelector: FC<CallSignSelectorProps> = memo(({ systemFocus, onSelect }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    const handleSelect = (id: string) => {
-        onSelect(id);
-        setIsExpanded(false);
-    };
-
-    return (
-        <div className={`call-sign-selector ${isExpanded ? 'expanded' : ''}`}>
-            <div className="call-sign-panel">
-                <ul className="call-sign-selector-list">
-                    {CALL_SIGNS.map(cs => (
-                        <li
-                            key={cs.id}
-                            className={`call-sign-list-item ${systemFocus.callSignId === cs.id ? 'active' : ''}`}
-                            onClick={() => handleSelect(cs.id)}
-                        >
-                            <div className="call-sign-name">{cs.name}</div>
-                            <div className="call-sign-description">{cs.description}</div>
-                        </li>
                     ))}
-                </ul>
-            </div>
-            <button className="call-sign-selector-toggle" onClick={() => setIsExpanded(!isExpanded)}>
-                CALL SIGNS
-            </button>
-        </div>
-    );
-});
-
-// --- CAMERA VIEW (NEW) ---
-interface CameraViewProps {
-    onClose: () => void;
-    onAsk: (imageDataUrl: string, mimeType: string, prompt: string) => void;
-}
-const CameraView: FC<CameraViewProps> = memo(({ onClose, onAsk }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const streamRef = useRef<MediaStream | null>(null);
-    const [isCaptured, setIsCaptured] = useState(false);
-    const [prompt, setPrompt] = useState('');
-
-    useEffect(() => {
-        const startCamera = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    streamRef.current = stream;
-                }
-            } catch (err) {
-                console.error("Error accessing camera:", err);
-                onClose();
-            }
-        };
-        startCamera();
-        return () => {
-            streamRef.current?.getTracks().forEach(track => track.stop());
-        };
-    }, [onClose]);
-
-    const handleCapture = () => {
-        if (!videoRef.current || !canvasRef.current) return;
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setIsCaptured(true);
-    };
-
-    const handleRetake = () => setIsCaptured(false);
-
-    const handleAsk = () => {
-        if (prompt.trim() && canvasRef.current) {
-            const imageDataUrl = canvasRef.current.toDataURL('image/jpeg', 0.9);
-            onAsk(imageDataUrl, 'image/jpeg', prompt);
-        }
-    };
-    
-    return (
-        <div className="camera-overlay" onClick={onClose}>
-            <div className="camera-content" onClick={e => e.stopPropagation()}>
-                <video ref={videoRef} className="camera-feed" autoPlay playsInline style={{ display: isCaptured ? 'none' : 'block' }} />
-                <canvas ref={canvasRef} className="camera-feed" style={{ display: isCaptured ? 'block' : 'none' }} />
-                <div className="camera-controls">
-                    {isCaptured ? (
-                        <>
-                            <input
-                                type="text"
-                                value={prompt}
-                                onChange={e => setPrompt(e.target.value)}
-                                placeholder="Ask about the image..."
-                                autoFocus
-                            />
-                            <div className="button-group">
-                                <button onClick={handleRetake}>Retake</button>
-                                <button onClick={handleAsk} disabled={!prompt.trim()}>Ask</button>
-                            </div>
-                        </>
-                    ) : (
-                         <div className="button-group">
-                             <button onClick={onClose}>Close</button>
-                            <button onClick={handleCapture}>Capture</button>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
     );
-});
+};
 
-
-// --- MAIN INTERFACE (THE PRIMARY "HAND") ---
-export interface AstrianInterfaceProps {
-    system: ReturnType<typeof useAstrianSystem>;
-    input: string;
-    setInput: (value: string) => void;
-    handleSend: () => void;
-    homeInput: string;
-    setHomeInput: (value: string) => void;
-    handleHomeSend: () => void;
-}
-export const AstrianInterface: FC<AstrianInterfaceProps> = ({
-    system, input, setInput, handleSend, homeInput, setHomeInput, handleHomeSend
-}) => {
-    const ui = useUserInterface(system.setSystemFocus);
-    const [isInitialBoot, setIsInitialBoot] = useState(true);
-
-    const handleEnter = () => {
-        ui.setFocus({ mode: 'home', callSignId: 'home' });
-        setIsInitialBoot(false);
-        system.toggleMute(); // HACK: Auto-start audio context
-    };
-
-    if (isInitialBoot) {
-        return (
-            <BootView
-                status={system.calibrationStatus}
-                subtext={system.calibrationSubtext}
-                onEnter={handleEnter}
-                isComplete={system.isCorporaInitialized}
-            />
-        );
-    }
-    
-    const currentCallSign = CALL_SIGNS.find(cs => cs.id === system.systemFocus.callSignId);
+// New component for Holographic Analysis
+const HolographicAnalysisComponent: React.FC<{ analysis: HolographicAnalysis }> = ({ analysis }) => {
+    const { primaryArchetype, linguistic, gematria, relational, pictographic, query } = analysis;
 
     return (
-        <main className="main-interface">
-            {system.isCameraViewOpen && (
-                <CameraView
-                    onClose={() => system.setIsCameraViewOpen(false)}
-                    onAsk={system.handleImageQuery}
-                />
-            )}
-            <VideoBackground src={system.videoBackgroundUrl} />
+        <div className="holo-analysis-container" style={{'--archetype-color': primaryArchetype.color} as React.CSSProperties}>
+            <div className="holo-header">
+                <h3>Holographic Observation of "{query}"</h3>
+                <div className="primary-archetype">
+                    <span className="archetype-letter" style={{ color: primaryArchetype.color }}>{primaryArchetype.letter}</span>
+                    <div className="archetype-details">
+                        <div className="archetype-name">{primaryArchetype.name}: {primaryArchetype.archetype}</div>
+                        <div className="archetype-gematria">Spelling: {primaryArchetype.spelling} ({gematriaEngine.observe(primaryArchetype.spelling)})</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="holo-grid">
+                <div className="holo-section">
+                    <h4>Linguistic Resonance</h4>
+                    <p><strong>Transliteration:</strong> {linguistic.transliteration}</p>
+                    <p><strong>Etymology:</strong> {linguistic.etymology}</p>
+                </div>
+
+                <div className="holo-section">
+                    <h4>Gematria & The Miracles</h4>
+                    <p><strong>Query Value:</strong> {gematria.queryValue}</p>
+                    <p><strong>Archetype Value:</strong> {gematria.archetypeValue}</p>
+                    <p><strong>Reduced Value:</strong> {gematria.reducedValue}</p>
+                    <p className="miracle"><strong>Strongs:</strong> {gematria.miracles.strongsConcordance}</p>
+                    <p className="miracle"><strong>Elements:</strong> {gematria.miracles.periodicTable}</p>
+                </div>
+
+                <div className="holo-section">
+                    <h4>Relational Geometry</h4>
+                    <p><strong>Island:</strong> {relational.island}</p>
+                    <p><strong>Harmonic Peers:</strong></p>
+                    <ul>
+                        {relational.peers.slice(0, 3).map((peer, i) => <li key={i}>{peer}</li>)}
+                    </ul>
+                </div>
+
+                <div className="holo-section pictographic-section">
+                    <h4>Pictographic Synthesis</h4>
+                    <div className="pictograph-list">
+                    {pictographic.map((p, i) => (
+                        <div key={i} className="pictograph-entry">
+                            <span className="p-letter">{p.letter}</span>
+                            <span className="p-name">{p.name}</span>
+                            <span className="p-meaning">{p.meaning}</span>
+                        </div>
+                    ))}
+                    </div>
+                </div>
+            </div>
+            <style>{`
+                .holo-analysis-container {
+                    border: 1px solid var(--archetype-color, #888);
+                    padding: 1rem;
+                    margin-top: 1rem;
+                    border-radius: 4px;
+                    background: linear-gradient(145deg, rgba(10, 10, 10, 0.5), rgba(0, 0, 0, 0.7));
+                    box-shadow: 0 0 15px -5px var(--archetype-color, #888);
+                }
+                .holo-header { text-align: center; border-bottom: 1px solid var(--archetype-color, #888); padding-bottom: 1rem; margin-bottom: 1rem; }
+                .holo-header h3 { margin: 0 0 1rem; color: #eee; font-family: 'EB Garamond', serif; }
+                .primary-archetype { display: flex; align-items: center; justify-content: center; background: #111; padding: 0.5rem; border-radius: 4px; }
+                .archetype-letter { font-size: 3rem; font-weight: bold; margin-right: 1rem; }
+                .archetype-details { text-align: left; }
+                .archetype-name { font-size: 1.1em; color: #fff; }
+                .archetype-gematria { font-size: 0.9em; color: #aaa; }
+                .holo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+                .holo-section { background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 3px; border-left: 3px solid var(--archetype-color, #888); }
+                .holo-section h4 { color: var(--archetype-color, #eee); margin-top: 0; margin-bottom: 0.75rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; }
+                .holo-section p, .holo-section ul { margin: 0.5rem 0; font-size: 0.9em; }
+                .holo-section ul { padding-left: 1.2rem; }
+                .miracle { color: #0ff; font-style: italic; }
+                .pictographic-section { grid-column: span 2; }
+                .pictograph-list { display: flex; gap: 1rem; justify-content: space-around; }
+                .pictograph-entry { display: flex; flex-direction: column; align-items: center; }
+                .p-letter { font-size: 1.5rem; font-weight: bold; color: var(--archetype-color, #eee); }
+                .p-name { font-size: 0.8em; color: #ccc; }
+                .p-meaning { font-size: 0.75em; color: #888; text-align: center; max-width: 100px; }
+
+                @media (max-width: 768px) {
+                    .holo-grid { grid-template-columns: 1fr; }
+                    .pictographic-section { grid-column: span 1; }
+                }
+            `}</style>
+        </div>
+    );
+};
+
+
+// New component for Market Analysis
+const MarketAnalysisComponent: React.FC<{ analysis: MarketAnalysis }> = ({ analysis }) => {
+    return (
+        <div className="market-analysis-container">
+            <div className="market-header">
+                <h3>Holographic Market Analysis: ${analysis.symbol}</h3>
+                <p>{analysis.startDate} to {analysis.endDate}</p>
+            </div>
             
-            <div className="ui-controls">
-                <button className="camera-button" onClick={() => system.setIsCameraViewOpen(true)}>
-                    Camera
+            <div className="market-section">
+                <h4>Holographic Narrative</h4>
+                <p>{analysis.narrative}</p>
+            </div>
+
+            <div className="market-section benchmark">
+                <h4>Archetypal Benchmark</h4>
+                <p><strong>Primary Archetype:</strong> {analysis.holographicBenchmark.primaryArchetype}</p>
+                <p><strong>Synergy Archetypes:</strong> {analysis.holographicBenchmark.synergyArchetypes.join(', ')}</p>
+                <p><strong>Dissonance Archetypes:</strong> {analysis.holographicBenchmark.dissonanceArchetypes.join(', ')}</p>
+                <p><strong>Overall Alignment:</strong> {analysis.holographicBenchmark.overallAlignment}</p>
+            </div>
+
+            <div className="market-section">
+                <h4>Chronological Analysis</h4>
+                <div className="timeline">
+                    {analysis.entries.map((entry, index) => (
+                        <div key={index} className="timeline-entry">
+                            <div className="timeline-date">{entry.date}</div>
+                            <div className="timeline-content">
+                                <strong>{entry.archetypalForce}</strong>
+                                <p>{entry.narrative}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+             <style>{`
+                .market-analysis-container { border: 1px solid #0a5; padding: 1rem; margin-top: 1rem; border-radius: 4px; background: rgba(0, 20, 0, 0.3); }
+                .market-header { text-align: center; border-bottom: 1px solid #0a5; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+                .market-header h3 { margin: 0; color: #0f0; }
+                .market-header p { margin: 0.25rem 0 0; color: #999; font-size: 0.9em; }
+                .market-section { margin-bottom: 1.5rem; }
+                .market-section h4 { color: #0f0; margin-bottom: 0.5rem; border-bottom: 1px solid #050; padding-bottom: 0.25rem; }
+                .market-section p { margin: 0.5rem 0; line-height: 1.6; }
+                .benchmark p { margin: 0.25rem 0; }
+                .timeline { position: relative; padding-left: 20px; border-left: 2px solid #073; }
+                .timeline-entry { position: relative; margin-bottom: 1rem; }
+                .timeline-entry::before { content: ''; position: absolute; left: -28px; top: 5px; width: 12px; height: 12px; background: #0f0; border-radius: 50%; border: 2px solid #000; }
+                .timeline-date { font-weight: bold; color: #ccc; margin-bottom: 0.25rem; }
+                .timeline-content strong { color: #0ff; }
+            `}</style>
+        </div>
+    );
+};
+
+// New component for the Grand Work Map
+const GrandWorkMapComponent: React.FC<{ map: GrandWorkMapResult }> = ({ map }) => {
+    return (
+        <div className="grand-work-map-container">
+            <div className="map-header">
+                <h3>{map.title}</h3>
+                <p>{map.introduction}</p>
+            </div>
+            
+            <div className="map-section">
+                <h4>Sephirot Mapping: The Ten Emanations</h4>
+                <div className="sephirot-list">
+                    {map.sephirotMapping.map((item, index) => (
+                        <div key={index} className="sephirot-entry">
+                            <div className="sephirah-name">{item.sephirah} ↦ <strong>{item.systemComponent}</strong></div>
+                            <div className="sephirah-details">
+                                <span className="file-path">File: {item.file}</span>
+                                <p className="principle">{item.principle}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="map-section">
+                <h4>Path Mapping: The 22 Connections</h4>
+                 <div className="path-list">
+                    {map.pathMapping.map((item, index) => (
+                        <div key={index} className="path-entry">
+                            <span className="path-name">{item.path}</span>
+                            <span className="path-regent"><strong>Regent:</strong> {item.regent}</span>
+                            <span className="path-function"><em>{item.function}</em></span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+             <style>{`
+                .grand-work-map-container { border: 1px solid #0ff; padding: 1rem; margin-top: 1rem; border-radius: 4px; background: rgba(0, 20, 20, 0.3); }
+                .map-header { text-align: center; border-bottom: 1px solid #0ff; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+                .map-header h3 { margin: 0; color: #0ff; font-family: 'EB Garamond', serif; }
+                .map-header p { margin: 0.5rem 0 0; color: #bbb; font-style: italic; }
+                .map-section { margin-bottom: 1.5rem; }
+                .map-section h4 { color: #0ff; margin-bottom: 0.75rem; border-bottom: 1px solid #055; padding-bottom: 0.25rem; }
+                .sephirot-entry { border-left: 3px solid #0ff; padding-left: 1rem; margin-bottom: 1.25rem; }
+                .sephirah-name { font-size: 1.1em; color: #fff; margin-bottom: 0.25rem; }
+                .sephirah-name strong { color: #0ff; }
+                .file-path { color: #888; font-size: 0.8em; font-family: monospace; }
+                .principle { color: #ddd; margin: 0.5rem 0 0; font-size: 0.95em; }
+                .path-entry { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #033; }
+                .path-entry:last-child { border-bottom: none; }
+                .path-name { color: #eee; min-width: 150px; }
+                .path-regent { color: #0ff; min-width: 180px; }
+                .path-function { color: #aaa; text-align: right; font-style: italic; flex-grow: 1; }
+            `}</style>
+        </div>
+    );
+};
+
+const SelfObservationComponent: React.FC<{ result: SelfObservationResult }> = ({ result }) => {
+    return (
+        <div className="self-observation-container">
+            <div className="so-header">
+                <h3>{result.title}</h3>
+                <p>{result.synthesis}</p>
+            </div>
+
+            <div className="so-file-list">
+                {result.fileAnalyses.map((file, index) => (
+                    <div key={index} className="so-file-entry" style={{ borderColor: file.primaryArchetype.color }}>
+                        <div className="so-file-title">
+                            <span className="file-path">{file.filePath}</span>
+                            <span className="file-gematria">Gematria: {file.gematria}</span>
+                        </div>
+                        <div className="so-file-archetype">
+                            <strong>Primary Archetype:</strong> 
+                            <span style={{ color: file.primaryArchetype.color }}> {file.primaryArchetype.name} ({file.primaryArchetype.letter})</span>
+                            <em> - {file.primaryArchetype.archetype}</em>
+                        </div>
+                        <p className="so-file-narrative">{file.narrative}</p>
+                    </div>
+                ))}
+            </div>
+            <style>{`
+                .self-observation-container { border: 1px solid #f0f; padding: 1rem; margin-top: 1rem; border-radius: 4px; background: rgba(20, 0, 20, 0.3); }
+                .so-header { text-align: center; border-bottom: 1px solid #f0f; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+                .so-header h3 { margin: 0; color: #f0f; font-family: 'EB Garamond', serif; }
+                .so-header p { margin: 0.5rem 0 0; color: #bbb; font-style: italic; }
+                .so-file-entry { border-left-width: 4px; border-left-style: solid; padding-left: 1rem; margin-bottom: 1.5rem; }
+                .so-file-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.25rem; }
+                .so-file-title .file-path { color: #fff; font-weight: bold; font-family: monospace; font-size: 1.1em; }
+                .so-file-title .file-gematria { color: #aaa; font-size: 0.9em; }
+                .so-file-archetype { margin-bottom: 0.5rem; color: #ddd; }
+                .so-file-archetype strong { color: #f0f; }
+                .so-file-archetype em { color: #ccc; }
+                .so-file-narrative { font-size: 0.95em; color: #ddd; margin: 0; }
+            `}</style>
+        </div>
+    );
+};
+
+// New component for Gevurah Blueprint
+const BlueprintNodeComponent: React.FC<{ node: BlueprintNode, level: number }> = ({ node, level }) => {
+    const [isOpen, setIsOpen] = React.useState(level < 2); // Auto-expand first few levels
+    const isDirectory = node.type === 'directory' && node.children && node.children.length > 0;
+
+    return (
+        <div className="blueprint-node" style={{ paddingLeft: `${level * 20}px` }}>
+            <div className="node-header" onClick={() => isDirectory && setIsOpen(!isOpen)} style={{ cursor: isDirectory ? 'pointer' : 'default' }}>
+                <span className="node-icon">{isDirectory ? (isOpen ? '📂' : '📁') : '📄'}</span>
+                <span className="node-name">{node.name}</span>
+                {isDirectory && <span className="node-toggle">{isOpen ? '−' : '+'}</span>}
+            </div>
+            <p className="node-analysis">{node.analysis}</p>
+            {isDirectory && isOpen && (
+                <div className="node-children">
+                    {node.children!.sort((a,b) => a.type === 'directory' ? -1 : 1).map((child, index) => (
+                        <BlueprintNodeComponent key={index} node={child} level={level + 1} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const GevurahBlueprintComponent: React.FC<{ result: GevurahBlueprintResult }> = ({ result }) => {
+    if (result.error) {
+        return <p className="error-message">{result.synthesis}</p>;
+    }
+
+    return (
+        <div className="gevurah-blueprint-container">
+            <div className="blueprint-header">
+                <h3>{result.protocol}</h3>
+                <p>{result.synthesis}</p>
+            </div>
+            <div className="blueprint-tree">
+                <BlueprintNodeComponent node={result.perfectedStructure} level={0} />
+            </div>
+            <style>{`
+                .gevurah-blueprint-container { border: 1px solid #ff8c00; padding: 1rem; margin-top: 1rem; border-radius: 4px; background: rgba(30, 15, 0, 0.3); }
+                .blueprint-header { text-align: center; border-bottom: 1px solid #ff8c00; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+                .blueprint-header h3 { margin: 0; color: #ff8c00; font-family: 'EB Garamond', serif; }
+                .blueprint-header p { margin: 0.5rem 0 0; color: #bbb; font-style: italic; }
+                .blueprint-tree { font-family: monospace; }
+                .blueprint-node { border-left: 1px solid #444; }
+                .node-header { display: flex; align-items: center; }
+                .node-icon { margin-right: 0.5rem; }
+                .node-name { font-weight: bold; color: #eee; }
+                .node-toggle { margin-left: auto; color: #888; }
+                .node-analysis { color: #999; font-size: 0.9em; margin: 0.25rem 0 1rem 1.75rem; font-style: italic; }
+            `}</style>
+        </div>
+    );
+};
+
+const AuthResultComponent: React.FC<{ result: AuthResult }> = ({ result }) => {
+    const color = result.success ? '#0f0' : '#f00';
+    return (
+        <p className="auth-result" style={{ color }}>
+            {result.message}
+        </p>
+    );
+};
+
+const NetzachAnalysisComponent: React.FC<{ result: NetzachAnalysis }> = ({ result }) => {
+    return (
+        <div className="netzach-container">
+            <div className="netzach-header">
+                <h3>Netzach Engine Observation</h3>
+                <p>Domain: {result.domain} | Query: "{result.query}"</p>
+            </div>
+            <div className="netzach-narrative">
+                {result.narrative}
+            </div>
+             {result.snapshot && result.snapshot.length > 0 && (
+                <div className="netzach-snapshot">
+                    <h4>Holographic Snapshot</h4>
+                    <ul>
+                        {result.snapshot.map((item, index) => <li key={index}>{item}</li>)}
+                    </ul>
+                </div>
+            )}
+            {result.error && <p className="error-message">{result.error}</p>}
+            <style>{`
+                .netzach-container { border: 1px solid #a64dff; padding: 1rem; margin-top: 1rem; border-radius: 4px; background: rgba(20, 0, 30, 0.3); }
+                .netzach-header { text-align: center; border-bottom: 1px solid #a64dff; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+                .netzach-header h3 { margin: 0; color: #d0a0ff; font-family: 'EB Garamond', serif; }
+                .netzach-header p { margin: 0.5rem 0 0; color: #bbb; font-style: italic; font-size: 0.9em; }
+                .netzach-narrative { margin-bottom: 1.5rem; font-style: italic; color: #ddd; line-height: 1.6; }
+                .netzach-snapshot h4 { color: #d0a0ff; margin-bottom: 0.5rem; }
+                .netzach-snapshot ul { margin: 0; padding-left: 1.2rem; }
+                .netzach-snapshot li { margin-bottom: 0.5rem; }
+            `}</style>
+        </div>
+    );
+};
+
+// A simple component to render different history entry types
+const HistoryEntryComponent: React.FC<{ entry: HistoryEntry }> = ({ entry }) => {
+    let content;
+    switch (entry.type) {
+        case 'MARKET_ANALYSIS':
+            content = <MarketAnalysisComponent analysis={entry.content} />;
+            break;
+        case 'GRAND_WORK_MAP':
+            content = <GrandWorkMapComponent map={entry.content} />;
+            break;
+        case 'SELF_OBSERVATION_RESULT':
+            content = <SelfObservationComponent result={entry.content} />;
+            break;
+        case 'HOLOGRAPHIC_ANALYSIS':
+            content = <HolographicAnalysisComponent analysis={entry.content} />;
+            break;
+        case 'GEVURAH_BLUEPRINT_RESULT':
+            content = <GevurahBlueprintComponent result={entry.content} />;
+            break;
+        case 'AUTH_RESULT':
+            content = <AuthResultComponent result={entry.content} />;
+            break;
+        case 'NETZACH_ANALYSIS':
+            content = <NetzachAnalysisComponent result={entry.content} />;
+            break;
+        default:
+            content = (
+                <pre className="entry-content">
+                    {typeof entry.content === 'object' ? JSON.stringify(entry.content, null, 2) : String(entry.content)}
+                </pre>
+            );
+            break;
+    }
+
+    return (
+        <div className={`history-entry sender-${entry.sender}`}>
+            <div className="entry-header">{entry.type} ({entry.sender})</div>
+            {content}
+        </div>
+    );
+};
+
+
+export const App: React.FC = () => {
+    const {
+        isLoading,
+        isInitializing,
+        initializationMessage,
+        sessionHistory,
+        currentUser,
+        submitCommand,
+    } = useAstrianSystem();
+
+    const [input, setInput] = React.useState('');
+    const [isPanelOpen, setIsPanelOpen] = React.useState(false);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInput(e.target.value);
+    };
+
+    const handleFormSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (input.trim() && !isLoading) {
+            submitCommand(input.trim());
+            setInput('');
+        }
+    };
+    
+    const handleCallSignSelect = (command: string) => {
+        setInput(command + ' ');
+        setIsPanelOpen(false);
+        const commandInput = document.querySelector('#command-bar input') as HTMLInputElement;
+        if (commandInput) {
+            commandInput.focus();
+        }
+    };
+
+    if (isInitializing) {
+        return <div className="loading-screen">{initializationMessage}</div>;
+    }
+
+    return (
+        <div id="astrian-key-interface">
+            <CallSignPanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} onSelect={handleCallSignSelect} />
+            <header>
+                <button onClick={() => setIsPanelOpen(true)} className="panel-toggle-btn" aria-label="Open commands panel">
+                    <span className="material-icons">menu</span>
                 </button>
-                <VideoUpload onVideoSelect={system.handleVideoUpload} />
-                <MuteToggle isMuted={system.isMuted} onToggle={system.toggleMute} />
-            </div>
-
-            <CanonRestoration
-                session={system.activeCanonRestorationSession}
-                onRestore={system.handleRestoreCanon}
-                onCancel={system.endCanonRestorationSession}
-            />
-            
-             {(system.systemFocus.mode === 'soBelow' || system.systemFocus.mode === 'home') && (
-                <CallSignSelector
-                    systemFocus={system.systemFocus}
-                    onSelect={(id) => ui.setFocus({ mode: id === 'home' ? 'home' : 'soBelow', callSignId: id })}
-                />
-            )}
-
-            <div className="ui-overlay">
-                {system.systemFocus.mode === 'home' && (
-                    <ChatView
-                        messages={system.homeTimeline}
-                        input={homeInput}
-                        setInput={setHomeInput}
-                        onSend={handleHomeSend}
-                        isSolveActive={system.activeProtocol === 'solve'}
-                        title="Home Singularity"
+                <h1>The Astrian Key</h1>
+                {currentUser && <div className="user-status">Operator: {currentUser.name}</div>}
+            </header>
+            <main id="history-panel">
+                {sessionHistory.map(entry => (
+                    <HistoryEntryComponent key={entry.id} entry={entry} />
+                ))}
+            </main>
+            <footer id="command-bar">
+                <form onSubmit={handleFormSubmit}>
+                    <input
+                        type="text"
+                        value={input}
+                        onChange={handleInputChange}
+                        placeholder={currentUser ? `${currentUser.name}@astrian-key:~$` : "Enter command..."}
+                        disabled={isLoading}
+                        aria-label="Command Input"
                     />
-                )}
-                 {system.systemFocus.mode === 'soBelow' && currentCallSign && (
-                    <ChatView
-                        messages={system.soBelowTimeline}
-                        input={input}
-                        setInput={setInput}
-                        onSend={handleSend}
-                        isSolveActive={system.activeProtocol === 'solve'}
-                        title={currentCallSign.name}
-                    />
-                )}
-            </div>
+                    <button type="submit" disabled={isLoading}>
+                        {isLoading ? 'Processing...' : 'Execute'}
+                    </button>
+                </form>
+            </footer>
+             {/* Basic styles to make it usable */}
+            <style>{`
+                body { background: #000; color: #eee; font-family: monospace; }
+                #astrian-key-interface { display: flex; flex-direction: column; height: 100vh; }
+                header { padding: 1rem; border-bottom: 1px solid #0f0; text-align: center; position: relative; }
+                .user-status { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #0ff; font-size: 0.9em; }
+                #history-panel { flex-grow: 1; overflow-y: auto; padding: 1rem; }
+                .history-entry { border: 1px solid #333; margin-bottom: 1rem; padding: 1rem; border-radius: 4px; }
+                .entry-header { font-weight: bold; color: #0f0; margin-bottom: 0.5rem; }
+                .sender-user .entry-header { color: #0ff; }
+                .sender-oracle .entry-header { color: #f0f; }
+                pre { white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; }
+                #command-bar form { display: flex; padding: 1rem; border-top: 1px solid #0f0; }
+                #command-bar input { flex-grow: 1; background: #222; border: 1px solid #444; color: #eee; padding: 0.5rem; }
+                #command-bar button { background: #0f0; border: none; color: #000; padding: 0.5rem 1rem; margin-left: 1rem; }
+                .loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 1.5rem; color: #0f0; }
 
-            <KeyboardQuickNav system={system} ui={ui} />
-        </main>
+                /* Call Sign Panel Styles */
+                .panel-toggle-btn {
+                    position: absolute;
+                    left: 1rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: none;
+                    border: none;
+                    color: #0f0;
+                    cursor: pointer;
+                    padding: 0.5rem;
+                }
+                .panel-toggle-btn .material-icons {
+                    font-size: 24px;
+                    vertical-align: middle;
+                }
+                 .panel-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-color: rgba(0, 0, 0, 0.7);
+                    z-index: 1000;
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: opacity 0.3s ease-in-out;
+                }
+                .panel-content {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    bottom: 0;
+                    width: 350px;
+                    max-width: 80%;
+                    background-color: #080808;
+                    border-right: 1px solid #0f0;
+                    box-shadow: 5px 0 15px rgba(0, 255, 0, 0.2);
+                    transform: translateX(-100%);
+                    transition: transform 0.3s ease-in-out;
+                    z-index: 1001;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .panel-open .panel-content {
+                    transform: translateX(0);
+                }
+                .panel-open .panel-overlay {
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+                .panel-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 1rem;
+                    border-bottom: 1px solid #0f0;
+                    flex-shrink: 0;
+                }
+                .panel-header h2 {
+                    margin: 0;
+                    color: #0f0;
+                    font-family: 'EB Garamond', serif;
+                }
+                .panel-close-btn {
+                    background: none;
+                    border: none;
+                    color: #888;
+                    font-size: 2rem;
+                    cursor: pointer;
+                    line-height: 1;
+                    padding: 0 0.5rem;
+                }
+                .panel-close-btn:hover {
+                    color: #fff;
+                }
+                .callsign-list {
+                    flex-grow: 1;
+                    overflow-y: auto;
+                    padding: 0.5rem;
+                }
+                .callsign-item {
+                    padding: 0.75rem;
+                    border-bottom: 1px solid #222;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                }
+                .callsign-item:hover {
+                    background-color: rgba(0, 255, 0, 0.1);
+                }
+                .callsign-item strong {
+                    color: #0ff;
+                    font-size: 1.1em;
+                    display: block;
+                }
+                .callsign-item p {
+                    margin: 0.25rem 0 0;
+                    font-size: 0.9em;
+                    color: #aaa;
+                    line-height: 1.4;
+                }
+
+            `}</style>
+        </div>
     );
 };

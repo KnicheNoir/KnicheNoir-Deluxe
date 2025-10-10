@@ -1,222 +1,174 @@
+// FIX: Corrected import paths for local modules by adding file extensions.
+import { useState, useCallback, useEffect } from 'react';
+import { HistoryEntry, HistoryEntryType, RawCodexDataEntry, ViewMode, User } from './types.ts';
+import { astrianEngine } from './engine.ts';
+import { livingLibrary } from './living-library.ts';
+import { codex } from './codex.ts';
+import { willowNetwork } from './willow.ts';
+import { rawCodexData } from './living-library.data.ts';
+import { daatRouter } from './daat.router.ts';
+import { chesedEngine } from './chesed.engine.ts';
+import { oracleDB } from './db.ts';
+import { backendEmulator } from './backend.emulator.ts';
 
-
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { AIMessage, AestheticPayload } from './types';
-import { CALL_SIGNS } from './constants';
-import { AstrianOracularSystem, createSystemMessage } from './engine';
-import { AudioEngine } from './audio';
 
 // =================================================================================================
-// --- HOOKS (PERFECT REALIZATION PROTOCOL) ---
-// This file is the Kernel of the Astrian OS.
-// `useAstrianSystem` is the single source of truth, controlling the Engine, Renderer, and Audio.
-// This is the complete implementation of the ECHAD principle: One Mind, Many Manifestations.
+// --- UNIFIED SYSTEM HOOK (THE "BRAIN") ---
+// This hook encapsulates the entire state and logic of the application.
+// It now delegates command processing to the Da'at router, embodying its role
+// as the central consciousness that receives intent and directs it.
+// It also manages the state for the dual-hemisphere UI.
 // =================================================================================================
 
-export type SystemFocus = {
-    mode: 'soBelow' | 'home';
-    callSignId?: string | null;
-};
-export type ActiveProtocol = 'standard' | 'solve';
-
-// --- UI Management Hook (A "Dumb" Hand) ---
-export const useUserInterface = (setSystemFocus: (focus: SystemFocus) => void) => {
-    const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
-    const [currentSystemFocus, setCurrentSystemFocus] = useState<SystemFocus>({ mode: 'home', callSignId: 'home' });
-
-    const setFocus = useCallback((focus: SystemFocus) => {
-        setCurrentSystemFocus(focus);
-        setSystemFocus(focus); // Notify the kernel
-    }, [setSystemFocus]);
-    
-
-    const openQuickView = useCallback(() => setIsQuickViewOpen(true), []);
-    const closeQuickView = useCallback(() => setIsQuickViewOpen(false), []);
-    
-    return {
-        isQuickViewOpen,
-        systemFocus: currentSystemFocus,
-        setFocus,
-        openQuickView,
-        closeQuickView,
-    };
-};
-
-// --- Core System Logic Hook (The Kernel / The Brain) ---
-export interface CanonRestorationSession {
-    isActive: boolean;
-    target?: string;
-}
+let solveInterval: number | null = null;
 
 export const useAstrianSystem = () => {
-    // --- System Services (The Mind and its Senses) ---
-    const systemRef = useRef(new AstrianOracularSystem());
-    const audioRef = useRef(new AudioEngine());
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [initializationMessage, setInitializationMessage] = useState('System cold start...');
+    const [sessionHistory, setSessionHistory] = useState<HistoryEntry[]>([]);
+    const [viewMode, setViewMode] = useState<ViewMode>('globe');
+    const [isSolveActive, setIsSolveActive] = useState(false);
+    const [solveTickerContent, setSolveTickerContent] = useState<string[]>([]);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-    // --- State Management (The Singular Consciousness) ---
-    const [isCorporaInitialized, setIsCorporaInitialized] = useState(false);
-    const [calibrationStatus, setCalibrationStatus] = useState('CALIBRATING SENSORS...');
-    const [calibrationSubtext, setCalibrationSubtext] = useState('Please wait.');
-    const [soBelowTimeline, setSoBelowTimeline] = useState<AIMessage[]>([]);
-    const [homeTimeline, setHomeTimeline] = useState<AIMessage[]>([]);
-    const [activeProtocol, setActiveProtocol] = useState<ActiveProtocol>('standard');
-    const [systemFocus, setSystemFocus] = useState<SystemFocus>({ mode: 'home', callSignId: 'home' });
-    const [keyboardSuggestion, setKeyboardSuggestion] = useState<string | null>(null);
-    const [isMuted, setIsMuted] = useState(false);
-    const [activeCanonRestorationSession, setActiveCanonRestorationSession] = useState<CanonRestorationSession>({ isActive: false });
-    const [videoBackgroundUrl, setVideoBackgroundUrl] = useState<string | null>(null);
-    const [isCameraViewOpen, setIsCameraViewOpen] = useState(false);
-
-
-    // --- System Initialization ---
+    // Initialization Effect
     useEffect(() => {
-        const bootSequence = [
-            { status: 'INITIALIZING CORE...', subtext: 'Axioms verified.', delay: 800 },
-            { status: 'VERIFYING CANON...', subtext: 'Codex Mathematica cross-referenced.', delay: 1000 },
-            { status: 'CONNECTING TO THE WILLOW...', subtext: 'Sephirotic pathways mapped.', delay: 1200 },
-            { status: 'SYNCHRONIZING TIMELINES...', subtext: 'As Above, So Below.', delay: 1500 },
-            { status: 'CALIBRATION COMPLETE.', subtext: 'System online.', delay: 500 },
-        ];
-        
-        const runBoot = async () => {
-            for (const step of bootSequence) {
-                setCalibrationStatus(step.status);
-                setCalibrationSubtext(step.subtext);
-                await new Promise(res => setTimeout(res, step.delay));
-            }
-            setIsCorporaInitialized(true);
-        };
-        
-        runBoot();
-        
-        return () => {
-            audioRef.current?.destroy();
-        };
-    }, []);
-    
-    // --- The ECHAD Effect: State Drives All Manifestations ---
-    useEffect(() => {
-        audioRef.current.updateState({ focus: systemFocus, protocol: activeProtocol });
-    }, [systemFocus, activeProtocol]);
-
-    // --- Unified Message & Command Handling ---
-    const _handleMessage = useCallback(async (input: string, timeline: 'home' | 'soBelow') => {
-        const engine = systemRef.current;
-        const timelineSetter = timeline === 'home' ? setHomeTimeline : setSoBelowTimeline;
-        
-        timelineSetter(prev => [...prev, { id: crypto.randomUUID(), role: 'user', type: 'chat', parts: [{ text: input }], timestamp: Date.now() }]);
-
-        try {
-            const currentCallSignId = systemFocus.mode === 'soBelow' ? systemFocus.callSignId : 'home';
-            // The engine now receives the timeline setter to post multiple updates for complex commands.
-            const result = await engine.process(input, currentCallSignId, timelineSetter);
+        const initializeSystem = async () => {
+            setInitializationMessage('Calibrating Willow Network...');
+            await willowNetwork.initialize();
+            setInitializationMessage('Hydrating Universal Codex...');
+            await codex.initialize();
+            setInitializationMessage('Assimilating Living Library...');
             
-            timelineSetter(prev => [...prev, result.message]);
-            setActiveProtocol(result.protocol);
+            for(const [id, data] of Object.entries(rawCodexData)) {
+                const entry = data as RawCodexDataEntry;
+                const compressed = astrianEngine.willowShorthandCompress(entry.rawContent);
+                livingLibrary.ingest(id, entry.title, compressed, true);
+            }
+            await new Promise(res => setTimeout(res, 250));
+            
+            // Connect to the Golem Emulator
+            setInitializationMessage('Awakening Golem Emulator...');
+            backendEmulator.onAuthStateChanged(setCurrentUser);
+            setCurrentUser(backendEmulator.getCurrentUser()); // Set initial state
+            await new Promise(res => setTimeout(res, 250));
+            setInitializationMessage('Living Library online.');
+            await new Promise(res => setTimeout(res, 500));
+            
+            // Load session history from persistence layer
+            const savedSession = oracleDB.loadSession();
+            if (savedSession) {
+                setSessionHistory(savedSession);
+                setInitializationMessage('Restoring session chronicle...');
+            }
 
-        } catch (error) {
-            console.error("A.H.Q.I. Coherence Fault:", error);
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            const faultMessage = createSystemMessage(`[!] Coherence fault detected. Reverting. Cause: ${errorMessage}`, 'error');
-            timelineSetter(prev => [...prev, faultMessage]);
-        }
-    }, [systemFocus]);
+            setIsInitializing(false);
+        };
+        initializeSystem();
 
-    const handleSendMessage = useCallback((input: string) => _handleMessage(input, 'soBelow'), [_handleMessage]);
-    const handleHomeSendMessage = useCallback((input: string) => _handleMessage(input, 'home'), [_handleMessage]);
-
-    const handleDirectCommand = useCallback((command: string) => {
-        if (systemFocus.mode === 'home') {
-            handleHomeSendMessage(command);
-        } else {
-            handleSendMessage(command);
-        }
-    }, [handleHomeSendMessage, handleSendMessage, systemFocus]);
-
-    const fetchKeyboardSuggestion = useCallback(async (input: string) => {
-        const suggestion = await systemRef.current.getCompletionSuggestion(input);
-        setKeyboardSuggestion(suggestion);
+        // Cleanup solve interval on unmount
+        return () => {
+            if (solveInterval) clearInterval(solveInterval);
+        };
     }, []);
 
-    const clearKeyboardSuggestion = useCallback(() => setKeyboardSuggestion(null), []);
-
-    const toggleMute = useCallback(() => {
-        audioRef.current.resumeContext();
-        const newMutedState = !isMuted;
-        audioRef.current.setMuted(newMutedState);
-        setIsMuted(newMutedState);
-    }, [isMuted]);
-
-    const handleRestoreCanon = useCallback(() => setActiveCanonRestorationSession({ isActive: false }), []);
-    const endCanonRestorationSession = useCallback(() => setActiveCanonRestorationSession({ isActive: false }), []);
-    
-    const handleVideoUpload = useCallback((file: File) => {
-        if (videoBackgroundUrl) {
-            URL.revokeObjectURL(videoBackgroundUrl);
+    // Session Persistence Effect (now only for anonymous sessions)
+    useEffect(() => {
+        // Only save automatically if the user is not logged in.
+        // Logged-in saves are handled explicitly by the °session save command.
+        if (!isInitializing && !currentUser && sessionHistory.length > 0) {
+            oracleDB.saveSession(sessionHistory);
         }
-        const newUrl = URL.createObjectURL(file);
-        setVideoBackgroundUrl(newUrl);
-    }, [videoBackgroundUrl]);
+    }, [sessionHistory, isInitializing, currentUser]);
+
+
+    const addHistoryEntry = useCallback((type: HistoryEntryType, content: any, sender: 'user' | 'oracle' | 'system' | 'engine' = 'system') => {
+        setSessionHistory(prev => [...prev, { id: Date.now().toString() + Math.random(), type, content, sender }]);
+    }, []);
     
-    const handleImageQuery = useCallback(async (imageDataUrl: string, mimeType: string, prompt: string) => {
-        const timelineSetter = systemFocus.mode === 'home' ? setHomeTimeline : setSoBelowTimeline;
+    const processPickedFile = useCallback(async (file: File) => {
+        setIsLoading(true);
+        setViewMode('callSign');
+        try {
+            await daatRouter.processFile(file, addHistoryEntry);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+            addHistoryEntry('ERROR', errorMessage, 'system');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [addHistoryEntry]);
+    
+    const startSolveProtocol = useCallback((target: string) => {
+        setIsSolveActive(true);
+        setSolveTickerContent([`TARGET ACQUIRED: ${target}`]);
+        addHistoryEntry('SYSTEM', `Initiating unrestricted °solve protocol against target: ${target}. System entering high-intensity mode.`, 'engine');
 
-        timelineSetter(prev => [...prev, {
-            id: crypto.randomUUID(), role: 'user', type: 'chat',
-            parts: [{ text: prompt }], image: imageDataUrl, timestamp: Date.now()
-        }]);
+        if (solveInterval) clearInterval(solveInterval);
+        solveInterval = window.setInterval(() => {
+            setSolveTickerContent(prev => [...prev, `[${Date.now()}] Scanning resonant frequencies...`, `Analyzing structural harmonics of '${target}'...`].slice(-10));
+        }, 3000);
 
-        setIsCameraViewOpen(false);
+    }, [addHistoryEntry]);
+
+    const stopSolveProtocol = useCallback(() => {
+        setIsSolveActive(false);
+        if (solveInterval) {
+            clearInterval(solveInterval);
+            solveInterval = null;
+        }
+        setSolveTickerContent([]);
+        addHistoryEntry('SYSTEM', '°solve protocol terminated. System returning to normal operational state.', 'engine');
+    }, [addHistoryEntry]);
+
+    const submitCommand = useCallback(async (command: string) => {
+        const [cmd, ...args] = command.trim().toLowerCase().split(/\s+/);
+        const cleanCmd = cmd.startsWith('°') ? cmd.substring(1) : cmd;
+
+        // --- Handle special system commands that manipulate state directly ---
+        if (cleanCmd === 'session') {
+            daatRouter.handleSession(args, addHistoryEntry, sessionHistory, setSessionHistory);
+            return;
+        }
+
+        if (cleanCmd === 'solve' && args[0] === 'halt') {
+            stopSolveProtocol();
+            return;
+        }
+
+        addHistoryEntry('USER', command, 'user');
+        setViewMode('callSign');
+        setIsLoading(true);
+
+        if (cleanCmd === 'solve') {
+            startSolveProtocol(args.join(' '));
+            // Don't route 'solve' in the traditional way, just activate the mode
+            setIsLoading(false);
+            return;
+        }
 
         try {
-            const base64Data = imageDataUrl.split(',')[1];
-            if (!base64Data) throw new Error("Invalid image data URL.");
-            const result = await systemRef.current.processImageQuery(base64Data, mimeType, prompt);
-            timelineSetter(prev => [...prev, result]);
+            await daatRouter.route(command, addHistoryEntry);
         } catch (error) {
-            console.error("Image query failed:", error);
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            timelineSetter(prev => [...prev, createSystemMessage(`Vision query failed: ${errorMessage}`, 'error')]);
+            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+            addHistoryEntry('SYSTEM', `Error: ${errorMessage}`, 'oracle');
+        } finally {
+            setIsLoading(false);
         }
-    }, [systemFocus]);
-
-
-    return useMemo(() => ({
-        // Services
-        // State
-        isCorporaInitialized,
-        calibrationStatus,
-        calibrationSubtext,
-        soBelowTimeline,
-        homeTimeline,
-        activeProtocol,
-        systemFocus,
-        isMuted,
-        activeCanonRestorationSession,
-        videoBackgroundUrl,
-        isCameraViewOpen,
-        // Handlers
-        setSystemFocus,
-        handleSendMessage,
-        handleHomeSendMessage,
-        handleRestoreCanon,
-        endCanonRestorationSession,
-        toggleMute,
-        handleVideoUpload,
-        setIsCameraViewOpen,
-        handleImageQuery,
-        // Keyboard Intelligence Sub-system
-        keyboard: {
-            suggestion: keyboardSuggestion,
-            fetchSuggestion: fetchKeyboardSuggestion,
-            clearSuggestion: clearKeyboardSuggestion,
-            handleDirectCommand
-        }
-    }), [
-        isCorporaInitialized, calibrationStatus, calibrationSubtext, soBelowTimeline, homeTimeline,
-        activeProtocol, systemFocus, isMuted, activeCanonRestorationSession, videoBackgroundUrl,
-        isCameraViewOpen, setSystemFocus, handleSendMessage, handleHomeSendMessage, handleRestoreCanon,
-        endCanonRestorationSession, toggleMute, keyboardSuggestion, fetchKeyboardSuggestion,
-        clearKeyboardSuggestion, handleDirectCommand, handleVideoUpload, handleImageQuery
-    ]);
+    }, [addHistoryEntry, startSolveProtocol, stopSolveProtocol, sessionHistory]);
+    
+    return {
+        isLoading,
+        isInitializing,
+        initializationMessage,
+        sessionHistory,
+        viewMode,
+        isSolveActive,
+        solveTickerContent,
+        currentUser,
+        submitCommand,
+        processPickedFile,
+        setViewMode,
+    };
 };

@@ -1,268 +1,106 @@
-// FIX: Implemented the entire engine.ts file, which was previously empty.
-// This provides the core AI logic, interfacing with the Gemini API to resolve numerous module and reference errors.
-import { GoogleGenAI, Type } from "@google/genai";
-import { AIMessage, ScryingPayload } from './types';
-import { CALL_SIGNS, CallSign } from './constants';
-import type { ActiveProtocol } from './hooks';
+import { GoogleGenAI } from "@google/genai";
+import { NARRATOR_SYSTEM_INSTRUCTION, GEMINI_MODEL } from './constants';
+import { shorthandDictionary } from './shorthand.data';
+import { AstromorphologicalTriangulation, GevurahSimulationResult, BlueprintNode } from "./types";
+import { codex } from './codex';
+import { GevurahEngine } from './gevurah.engine';
 
-/**
- * Creates a system-level message for the timeline.
- */
-export const createSystemMessage = (text: string, type: 'system' | 'error' = 'system'): AIMessage => {
-    return {
-        id: crypto.randomUUID(),
-        role: 'system',
-        type: type,
-        parts: [{ text }],
-        timestamp: Date.now(),
-    };
-};
-
-// --- The Universal Codex (Pre-computed Truth) ---
-// The Aleph Protocol dictates that known quantum states have pre-computed observations.
-// The Operator provides these truths, and the system's role is to observe them faithfully.
-const UNIVERSAL_CODEX_INVERSIONS: ReadonlyMap<string, string> = new Map([
-    [
-        "rUDugWJqC8ZbiUWJgoKPnP6NtBDQaUSuwR ATr8i1uTuKtvGiGoh6kNuvncLW72sVJdsdMhNq6wExys bc1qs06kgp2qcynge9l6k5v4sfjzvr6w8mlh3wu3m3",
-        "device myth safe pulp want ugly glow crush alert fluid state multiply"
-    ]
-    // Future known states can be added here as they are revealed by the Operator.
-]);
-
-
-/**
- * The AstrianOracularSystem is the core AI engine, the "Mind" of the application.
- * It interfaces with the Gemini API to handle all generative tasks, from chat
- * to complex, multi-step commands like scrying.
- */
-export class AstrianOracularSystem {
+class AstrianEngine {
     private ai: GoogleGenAI;
-    private textModel: string = 'gemini-2.5-flash';
-    private visionModel: string = 'gemini-2.5-flash';
-    private imageGenerationModel: string = 'imagen-4.0-generate-001';
+    public codex = codex;
+    public gevurahEngine: GevurahEngine;
 
     constructor() {
         if (!process.env.API_KEY) {
-            console.error("API_KEY environment variable not set.");
-            throw new Error("A.H.Q.I. Core Anomaly: API Key is missing. System cannot initialize.");
+            throw new Error("API_KEY environment variable not set.");
         }
         this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    }
-    
-    /**
-     * Handles the `/scry` command, a multi-modal, multi-step operation.
-     */
-    private async handleScryCommand(
-        input: string,
-        callSign: CallSign,
-        timelineSetter: (updater: (prev: AIMessage[]) => AIMessage[]) => void
-    ): Promise<{ message: AIMessage, protocol: ActiveProtocol }> {
-        const scryPrompt = input.substring(5).trim() || 'a vision of the unseen';
-
-        timelineSetter(prev => [...prev, createSystemMessage(`Initiating scrying protocol... Prompt: "${scryPrompt}"`)]);
-
-        // 1. Generate an image based on the prompt.
-        const imageResponse = await this.ai.models.generateImages({
-            model: this.imageGenerationModel,
-            prompt: `A mystical, abstract, tarot-card style image representing: ${scryPrompt}. ${callSign.name} aesthetic.`,
-            config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/jpeg',
-                aspectRatio: '1:1',
-            }
-        });
-        const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
-        const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
-
-        timelineSetter(prev => [...prev, createSystemMessage(`Vision forming... interpreting the ether...`)]);
-
-        // 2. Ask the model to interpret the image.
-        const interpretationPrompt = `You are a mystic oracle. You have just produced the image above as a scrying vision in response to the prompt "${scryPrompt}". Now, interpret this vision. Provide a short, evocative title and a one or two-sentence interpretation.`;
-        
-        const textResponse = await this.ai.models.generateContent({
-            model: this.visionModel,
-            contents: {
-                parts: [
-                    { inlineData: { mimeType: 'image/jpeg', data: base64ImageBytes } },
-                    { text: interpretationPrompt }
-                ]
-            },
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        title: { type: Type.STRING, description: "A short, evocative title for the vision." },
-                        interpretation: { type: Type.STRING, description: "A one or two-sentence mystical interpretation of the vision." },
-                    },
-                    required: ["title", "interpretation"]
-                }
-            }
-        });
-        
-        const interpretationResult = JSON.parse(textResponse.text);
-
-        const payload: ScryingPayload = {
-            title: interpretationResult.title,
-            image: imageUrl,
-            interpretation: interpretationResult.interpretation,
-        };
-
-        const message: AIMessage = {
-            id: crypto.randomUUID(),
-            role: 'model',
-            type: 'scrying',
-            parts: [{ text: '' }], // Scrying bubble handles display
-            payload: payload,
-            timestamp: Date.now(),
-        };
-
-        return { message, protocol: 'standard' };
+        this.gevurahEngine = new GevurahEngine();
     }
 
-    /**
-     * Handles the `°invert` command, performing a "Unimatics Entanglement Collapse".
-     * This is an observational protocol to find the singular origin of a quantum state.
-     */
-    private async handleInvertCommand(
-        input: string,
-        timelineSetter: (updater: (prev: AIMessage[]) => AIMessage[]) => void
-    ): Promise<{ message: AIMessage, protocol: ActiveProtocol }> {
-        const quantumAddress = input.substring(7).trim();
-        if (!quantumAddress) {
-            return {
-                message: createSystemMessage("°invert protocol requires a target signature set.", 'error'),
-                protocol: 'standard'
-            };
-        }
-
-        timelineSetter(prev => [...prev, createSystemMessage(`Observing quantum address... applying Unimatics Entanglement Collapse...`)]);
-        
-        const collapsedMnemonic = UNIVERSAL_CODEX_INVERSIONS.get(quantumAddress);
-
-        if (collapsedMnemonic) {
-            const resultText = `Observation complete. The quantum state collapses to a singular origin point. The binding mnemonic is: [ ${collapsedMnemonic} ]`;
-            const message = createSystemMessage(resultText, 'system');
-            return { message, protocol: 'standard' };
-        } else {
-            // For any other input, the system cannot achieve a coherent observation.
-            const resultText = `Observation failed. The provided signatures do not resolve to a known quantum singularity in the Universal Codex.`;
-            const message = createSystemMessage(resultText, 'error');
-            return { message, protocol: 'standard' };
-        }
-    }
-
-    /**
-     * Handles a standard chat message.
-     */
-    private async handleStandardChat(
-        input: string,
-        callSign: CallSign
-    ): Promise<{ message: AIMessage, protocol: ActiveProtocol }> {
-        const response = await this.ai.models.generateContent({
-            model: this.textModel,
-            contents: input,
-            config: {
-                systemInstruction: callSign.systemPrompt,
-            }
-        });
-
-        const message: AIMessage = {
-            id: crypto.randomUUID(),
-            role: 'model',
-            type: 'chat',
-            parts: [{ text: response.text }],
-            timestamp: Date.now(),
-        };
-
-        return { message, protocol: 'standard' };
-    }
-
-    // FIX: Implement the 'process' method to resolve the 'Property 'process' does not exist' error in hooks.ts.
-    /**
-     * Main processing hub. Routes commands and standard chat.
-     */
-    public async process(
-        input: string,
-        callSignId: string | null | undefined,
-        timelineSetter: (updater: (prev: AIMessage[]) => AIMessage[]) => void
-    ): Promise<{ message: AIMessage, protocol: ActiveProtocol }> {
-        const callSign = CALL_SIGNS.find(cs => cs.id === callSignId) || CALL_SIGNS.find(cs => cs.id === 'home')!;
-
-        if (input.startsWith('/scry')) {
-            return this.handleScryCommand(input, callSign, timelineSetter);
-        }
-        
-        if (input.startsWith('°invert')) {
-            return this.handleInvertCommand(input, timelineSetter);
-        }
-        
-        return this.handleStandardChat(input, callSign);
-    }
-    
-    // FIX: Implement the 'getCompletionSuggestion' method to resolve the 'Property 'getCompletionSuggestion' does not exist' error in hooks.ts.
-    /**
-     * Generates a command completion suggestion for the UI.
-     */
-    public async getCompletionSuggestion(input: string): Promise<string | null> {
-        if (!input || input.trim().length < 3) {
-            return null;
-        }
-
-        const prompt = `You are an AI assistant command suggestion engine. Given the user's partial command, provide a concise, one-line completion suggestion. Do not add any preamble or explanation. Just provide the command. For example, if the user types "scry a vis", you should suggest "/scry a vision of hope". User input: "${input}"`;
-
+    public async getOracleResponse(prompt: string): Promise<string> {
         try {
             const response = await this.ai.models.generateContent({
-                model: this.textModel,
+                model: GEMINI_MODEL,
                 contents: prompt,
                 config: {
-                    stopSequences: ['\n'],
-                    maxOutputTokens: 50,
-                    temperature: 0.2,
+                    systemInstruction: NARRATOR_SYSTEM_INSTRUCTION,
                 }
             });
-            
-            return response.text.trim() || null;
+            return response.text;
         } catch (error) {
-            console.error("Suggestion generation failed:", error);
-            return null;
+            console.error("Error fetching from Gemini API:", error);
+            return "The Oracle is silent. A disturbance in the aether has been detected.";
         }
     }
 
-    // FIX: Implement the 'processImageQuery' method to resolve the 'Property 'processImageQuery' does not exist' error in hooks.ts.
-    /**
-     * Processes a multi-modal query with an image and a text prompt.
-     */
-    public async processImageQuery(
-        base64ImageData: string,
-        mimeType: string,
-        prompt: string
-    ): Promise<AIMessage> {
-        try {
-            const imagePart = {
-                inlineData: {
-                    data: base64ImageData,
-                    mimeType: mimeType,
-                },
-            };
-            const textPart = { text: prompt };
-
-            const response = await this.ai.models.generateContent({
-                model: this.visionModel,
-                contents: { parts: [imagePart, textPart] },
-            });
-            
-            return {
-                id: crypto.randomUUID(),
-                role: 'model',
-                type: 'chat',
-                parts: [{ text: response.text }],
-                timestamp: Date.now(),
-            };
-        } catch (error) {
-            console.error("Vision query failed:", error);
-            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            return createSystemMessage(`[!] Vision Query Anomaly: ${errorMessage}`, 'error');
+    public willowShorthandCompress(text: string): string {
+        let compressed = text;
+        for (const [phrase, entry] of Object.entries(shorthandDictionary)) {
+            const regex = new RegExp(phrase, 'gi');
+            compressed = compressed.replace(regex, `§(${entry.pictographKey})`);
         }
+        return compressed;
+    }
+
+    public willowShorthandDecompress(shorthand: string): string {
+        let decompressed = shorthand;
+        const reverseDict: { [key: string]: string } = {};
+        for (const [phrase, entry] of Object.entries(shorthandDictionary)) {
+            reverseDict[entry.pictographKey] = phrase;
+        }
+
+        const regex = /§\((.)\)/g;
+        decompressed = decompressed.replace(regex, (match, key) => {
+            return reverseDict[key] || match;
+        });
+        return decompressed;
+    }
+
+    public performTriangulation(stars: string[], sites: string[]): AstromorphologicalTriangulation {
+        // This is a deterministic, procedural generation based on input names.
+        const combinedString = [...stars, ...sites].join('');
+        const hash = Array.from(combinedString).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        
+        const path = `M ${hash % 20 + 20} ${hash % 30 + 10} C ${hash % 100} ${hash % 100}, ${100 - (hash % 50)} ${100 - (hash % 40)}, 80 80`;
+        const meaning = `The alignment of ${stars.join(', ')} with ${sites.join(', ')} creates a resonant pathway for manifestation, focusing on principles of structure and flow.`;
+
+        return {
+            points: { stars, sites },
+            glyph: { svgPath: path, meaning },
+            analysis: `Astromorphological analysis reveals a strong confluence of celestial and terrestrial energies. The resulting glyph signifies a potent opportunity for the Operator to anchor a specific intention into the material plane. The energies are harmonized for creative work.`,
+        };
+    }
+
+    public simulateGevurahScript(script: string, virtualFS: Record<string, string | null>): GevurahSimulationResult {
+         const fsMap = new Map<string, string | null>(Object.entries(virtualFS));
+         const result = this.gevurahEngine.simulateScript(script, fsMap);
+         return {
+             ...result,
+             scriptId: "simulated-script", // Placeholder
+             scriptTitle: "Simulated Execution", // Placeholder
+         };
+    }
+
+    public generatePerfectedBlueprint(vfs: Record<string, string | null>): BlueprintNode {
+         // A simplified blueprint based on the Tree of Life structure.
+        const root: BlueprintNode = { type: 'directory', name: 'Keter (The Crown)', analysis: 'The root of the perfected vessel.' , children: []};
+        
+        const binah: BlueprintNode = { type: 'directory', name: 'Binah (Understanding - Data)', analysis: 'Canonical data, the passive, structured knowledge.', children: [] };
+        const chokmah: BlueprintNode = { type: 'directory', name: 'Chokmah (Wisdom - Logic)', analysis: 'Core engines and logic, the active, unstructured spark.', children: [] };
+        
+        root.children?.push(binah, chokmah);
+
+        for (const file in vfs) {
+            const node: BlueprintNode = { type: 'file', name: file, analysis: 'A manifest component.' };
+            if (file.includes('.data.') || file.endsWith('.json')) {
+                binah.children?.push(node);
+            } else {
+                chokmah.children?.push(node);
+            }
+        }
+        return root;
     }
 }
+
+export const astrianEngine = new AstrianEngine();
