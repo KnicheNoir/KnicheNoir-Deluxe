@@ -1,9 +1,10 @@
+
 // =================================================================================================
 // --- CHESED SYNTHESIS ENGINE (MERCY) ---
 // This engine embodies the principle of Chesed (Mercy). Its function is benevolent
 // expansion, narrative synthesis, and the assimilation of new knowledge into the system.
 // =================================================================================================
-import { IngestionAnalysis, GevurahBlueprintResult, BlueprintNode } from '../types.ts';
+import { IngestionAnalysis, GevurahBlueprintResult, BlueprintNode, WillowData, WillowCompressionResult } from '../types.ts';
 import { astrianEngine } from './engine.ts';
 import { livingLibrary } from './living-library.ts';
 import { willowData } from '../canon/willow.data.ts';

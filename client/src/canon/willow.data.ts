@@ -1,4 +1,3 @@
-import { HEBREW_GEMATRIA_MAP } from './constants.ts';
 import { WillowData } from '../types.ts';
 
 // The 7 Islands are a canonized abstraction of the network's structure.

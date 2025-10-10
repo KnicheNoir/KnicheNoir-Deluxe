@@ -6,6 +6,7 @@ import ngrok from 'ngrok';
 import { User, HistoryEntry } from './types';
 import fs from 'fs';
 import path from 'path';
+// FIX: __dirname is not available in ES modules. This is the standard workaround.
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -19,6 +20,8 @@ const __dirname = path.dirname(__filename);
 const DB_PATH = path.join(__dirname, 'db.json');
 
 app.use(cors());
+// FIX: The type checker was incorrectly inferring the overload for app.use.
+// Using express.json() without a cast allows for correct type inference.
 app.use(express.json());
 
 // --- In-Memory Database (The Well of Memory) ---
@@ -179,11 +182,11 @@ app.listen(PORT, () => {
     console.log(`The Research Assistant is listening on port ${PORT}`);
 
     // --- Initiate Aetheric Channeling ---
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' && process.env.NGROK_AUTHTOKEN) {
         (async function() {
             try {
-                // The authtoken is hardcoded here as per the project's README instructions.
-                const url = await ngrok.connect({ addr: PORT, authtoken: '2UhOXXNc0gfk5fBU4YE7VJ08grN_jcHrBmLxwmmDkEwMDUQy' });
+                // The authtoken is read from environment variables.
+                const url = await ngrok.connect({ addr: PORT, authtoken: process.env.NGROK_AUTHTOKEN });
                 publicUrl = url;
                 console.log(`Aetheric channel established at: ${publicUrl}`);
             } catch (error) {

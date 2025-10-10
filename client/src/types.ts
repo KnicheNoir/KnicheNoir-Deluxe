@@ -1,3 +1,4 @@
+
 // =================================================================================================
 // --- UNIVERSAL TYPE DEFINITIONS ---
 // This file serves as the single source of truth for all data structures in the application.
@@ -303,6 +304,29 @@ export interface ApiCategory {
   entries: ApiEntry[];
 }
 
+export interface WillowCompressionResult {
+    title: string;
+    synthesis: string;
+    islands: {
+        island: number;
+        tier: number;
+        letters: {
+            letter: string;
+            color: string;
+        }[];
+        narrative: string;
+        gematriaChecksum: number;
+    }[];
+}
+
+export interface Chakra {
+    name: string;
+    color: string;
+    solfeggioFrequency: number;
+    description: string;
+    location: string;
+}
+
 export type HistoryEntryType =
   | 'USER' | 'ORACLE_RESPONSE' | 'SYSTEM' | 'ERROR' | 'HELP'
   | 'SEPHIROTH_ANALYSIS' | 'SHOR_ANALYSIS'
@@ -312,7 +336,8 @@ export type HistoryEntryType =
   | 'LIVING_GLYPHS_RESULT' | 'CELESTIAL_CIPHER_ANALYSIS' | 'GEVURAH_SIMULATION_RESULT'
   | 'GEVURAH_BLUEPRINT_RESULT' | 'GRAND_WORK_MAP' | 'HOLOGRAPHIC_ANALYSIS'
   | 'CYMATICS_RESULT' | 'MUSIC_COMPOSITION' | 'SELF_OBSERVATION_RESULT' | 'AUTH_RESULT'
-  | 'SESSION_MANAGER' | 'NETZACH_ANALYSIS' | 'PROPHECY_RESULT' | 'API_CODEX';
+  | 'SESSION_MANAGER' | 'NETZACH_ANALYSIS' | 'PROPHECY_RESULT' | 'API_CODEX'
+  | 'COMPRESSION_REPORT' | 'WILLOW_COMPRESSION_RESULT';
 
 export interface HistoryEntry {
     id: string;

@@ -2,7 +2,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { NARRATOR_SYSTEM_INSTRUCTION, GEMINI_MODEL } from '../canon/constants.ts';
 import { shorthandDictionary } from '../canon/shorthand.data.ts';
-// FIX: Imported ShorthandEntry to provide type information for the dictionary.
 import { AstromorphologicalTriangulation, GevurahSimulationResult, BlueprintNode, ShorthandEntry } from "../types.ts";
 import { codex } from './codex.ts';
 import { GevurahEngine } from './gevurah.engine.ts';
@@ -41,7 +40,6 @@ class AstrianEngine {
         let compressed = text;
         for (const [phrase, entry] of Object.entries(shorthandDictionary)) {
             const regex = new RegExp(phrase, 'gi');
-            // FIX: Cast entry to ShorthandEntry to allow access to pictographKey.
             compressed = compressed.replace(regex, `§(${(entry as ShorthandEntry).pictographKey})`);
         }
         return compressed;
@@ -51,7 +49,6 @@ class AstrianEngine {
         let decompressed = shorthand;
         const reverseDict: { [key: string]: string } = {};
         for (const [phrase, entry] of Object.entries(shorthandDictionary)) {
-            // FIX: Cast entry to ShorthandEntry to allow access to pictographKey.
             reverseDict[(entry as ShorthandEntry).pictographKey] = phrase;
         }
 
@@ -62,7 +59,7 @@ class AstrianEngine {
         return decompressed;
     }
 
-    public performTriangulation(stars: string[], sites: string[]): AstromorphologicalTriangulation {
+    public async performTriangulation(stars: string[], sites: string[]): Promise<AstromorphologicalTriangulation> {
         // This is a deterministic, procedural generation based on input names.
         const combinedString = [...stars, ...sites].join('');
         const hash = Array.from(combinedString).reduce((acc, char) => acc + char.charCodeAt(0), 0);
