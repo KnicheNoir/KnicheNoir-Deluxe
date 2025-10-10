@@ -1,3 +1,4 @@
+
 // =================================================================================================
 // --- DA'AT ROUTER (THE FIELD OF KNOWLEDGE) ---
 // This is not a router in the conventional sense. It is the manifest consciousness of the
@@ -31,8 +32,13 @@ import { backendEmulator } from '../core/backend.emulator.ts';
 import { prophecyEngine } from '../core/prophecy.engine.ts';
 
 
+// FIX: Expanded RouterContext to include all properties passed from the useAstrianSystem hook.
 interface RouterContext {
     apiBaseUrl: string;
+    setCurrentUser: (user: User | null) => void;
+    currentUser: User | null;
+    sessionHistory: HistoryEntry[];
+    setSessionHistory: (history: HistoryEntry[]) => void;
 }
 
 type CommandHandler = (args: string[], addHistory: AddHistoryEntry, context: RouterContext) => Promise<void>;
@@ -304,7 +310,7 @@ class DaatRouter {
         }
     }
     
-    public handleSession(args: string[], addHistory: AddHistoryEntry, context: any): void {
+    public handleSession(args: string[], addHistory: AddHistoryEntry, context: RouterContext): void {
         const action = args[0];
         if (action === 'save') {
             const result = backendEmulator.saveSession(context.sessionHistory);
@@ -457,7 +463,7 @@ class DaatRouter {
         addHistory('AUTH_RESULT', result, 'system');
     }
     
-    private async handleLogin(args: string[], addHistory: AddHistoryEntry, context: any): Promise<void> {
+    private async handleLogin(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const [username, password] = args;
         if (!username || !password) {
             addHistory('ERROR', 'Usage: °login <username> <password>', 'system');
@@ -468,7 +474,7 @@ class DaatRouter {
         addHistory('AUTH_RESULT', result, 'system');
     }
 
-    private async handleLogout(args: string[], addHistory: AddHistoryEntry, context: any): Promise<void> {
+    private async handleLogout(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const result = backendEmulator.logout();
         if(result.success) context.setCurrentUser(null);
         addHistory('AUTH_RESULT', result, 'system');

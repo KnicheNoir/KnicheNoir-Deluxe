@@ -1,7 +1,9 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { NARRATOR_SYSTEM_INSTRUCTION, GEMINI_MODEL } from '../canon/constants.ts';
 import { shorthandDictionary } from '../canon/shorthand.data.ts';
-import { AstromorphologicalTriangulation, GevurahSimulationResult, BlueprintNode } from "../types.ts";
+// FIX: Imported ShorthandEntry to provide type information for the dictionary.
+import { AstromorphologicalTriangulation, GevurahSimulationResult, BlueprintNode, ShorthandEntry } from "../types.ts";
 import { codex } from './codex.ts';
 import { GevurahEngine } from './gevurah.engine.ts';
 
@@ -39,7 +41,8 @@ class AstrianEngine {
         let compressed = text;
         for (const [phrase, entry] of Object.entries(shorthandDictionary)) {
             const regex = new RegExp(phrase, 'gi');
-            compressed = compressed.replace(regex, `§(${entry.pictographKey})`);
+            // FIX: Cast entry to ShorthandEntry to allow access to pictographKey.
+            compressed = compressed.replace(regex, `§(${(entry as ShorthandEntry).pictographKey})`);
         }
         return compressed;
     }
@@ -48,7 +51,8 @@ class AstrianEngine {
         let decompressed = shorthand;
         const reverseDict: { [key: string]: string } = {};
         for (const [phrase, entry] of Object.entries(shorthandDictionary)) {
-            reverseDict[entry.pictographKey] = phrase;
+            // FIX: Cast entry to ShorthandEntry to allow access to pictographKey.
+            reverseDict[(entry as ShorthandEntry).pictographKey] = phrase;
         }
 
         const regex = /§\((.)\)/g;

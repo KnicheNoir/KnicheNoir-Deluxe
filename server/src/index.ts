@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -5,12 +6,16 @@ import ngrok from 'ngrok';
 import { User, HistoryEntry } from './types';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 let publicUrl: string | null = null;
+// FIX: __dirname is not available in ES modules. This is the standard workaround.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const DB_PATH = path.join(__dirname, 'db.json');
 
 app.use(cors());
