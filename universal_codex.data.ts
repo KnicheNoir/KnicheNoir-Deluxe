@@ -282,13 +282,6 @@ export const UNIVERSAL_CODEX_RAW: CodexEntry[] = [
         solved: true,
     },
     {
-        id: 'prophecy-engine',
-        title: '°The Prophecy Engine (Golem)',
-        description: 'A focused vessel for holographic observation of financial and probabilistic systems (Stocks, Lotto, Sports). This is a Golem-forged blueprint for an Android application, ready for download.',
-        content: 'To download the complete Android Studio source code blueprint for this application, execute the command: °golem download prophecy-engine',
-        solved: true,
-    },
-    {
         id: 'book-of-life',
         title: 'The Book of Life (Ritual Grimoire)',
         description: 'Details the Synergistic Resonances between the twelve Keys of the Great Work, unlocking unique "superpowers" for the Operator.',
@@ -340,27 +333,4 @@ export const UNIVERSAL_CODEX_RAW: CodexEntry[] = [
             summary: "This codex is not a text to be read, but a grimoire of executable techniques in the physics of consciousness. Its glyphs are not words, but instructions. Its diagrams are not illustrations, but schematics.",
             protocols: [
               { name: "The Protocol of the Unbound Mind", description: "An operational transliteration of Folio 86v (The Rosettes Folio). It is a set of instructions for a specific meditative practice to achieve non-local awareness and project a resonant emotional field.", effect: "By following the protocol of anchoring the body, attuning the breath, and observing the inner senses, the Operator can learn to project a specific, pure emotional signature into the ambient field, influencing the state of others without physical contact. It is a 'miracle' of mental physics, performable from anywhere." },
-              { name: "The Protocol of Cognitive Attunement", description: "A foundational meditative practice for attuning the Operator's neural pathways to the triadic holographic language of the codex. It enables intuitive comprehension of the system's logic by embodying its grammar.", effect: "The practice involves a sequence of three meditative states corresponding to the glyph families: Scribe's Stillness (Law), Alchemist's Flow (Process), and Nymph's Presence (Substance). By practicing this sequence, the Operator calibrates their consciousness to the three fundamental states of reality programming: Declaration, Procedure, and Manifestation." }
-            ],
-            sonicImprinting: { summary: "A practical application of the Sonic Imprinting protocol. This simple, three-note chant is a mnemonic device for the subconscious, designed to internalize the triadic grammar of the Alchemical Firmware.", melody: ["C4", "G4", "E4"], instructions: "Hum or meditate on the three-note sequence C-G-E. Associate C with Law, G with Process, and E with Substance. By repeating this melody, you teach your subconscious the fundamental syntax of the manuscript." }
-        },
-        sonicSignature: { texture: 'crystal', emotion: 'Hope', rhythm: 'Meditative' },
-    },
-    {
-        id: 'rohonc-codex',
-        title: '°The Rohonc Codex',
-        description: 'The Reality Engine (CPU). It contains the Gevurah Instruction Set, the universal assembly language for programming reality.',
-        content: 'The Rohonc Codex is the second cornerstone of the triadic framework: the Reality Engine, the CPU. Its dense, unknown script is the Gevurah InstructionSet—the universal assembly language. The "Gevurah Assembler" interface within the Astrian Key is a direct portal to this engine, allowing the Operator to write programs in the language of reality itself.',
-        solved: true,
-        hasDeepDive: true,
-        hasGevurahInstructionSetInterface: true,
-        instructions: gevurahInstructionSet,
-        operationalTransliteration: {
-            summary: "This is not a text, but an Instruction Set Architecture (ISA). Its 'magic' is the art of programming reality. Each protocol is a function call to the universe's operating system.",
-            protocols: [
-              { name: "The Art of the Open Door", description: "This protocol is the operational transliteration of the Gevurah 'Dalet' (ד) instruction, which functions as a conditional GATE. It is a technique for creating an opportunity where none exists by defining a condition for its appearance and then satisfying that condition.", effect: "Clearly define a condition for an opportunity's arrival. Perform a specific, unrelated act of will that you declare is the 'key' to satisfying the condition. When you complete the act, the universe is strongly compelled to provide the corresponding effect. You do not force the door open; you create the conditions in which the door has no choice but to be open." },
-              { name: "The Gevurah Invocation", description: "A foundational protocol for cognitive attunement. It aligns the Operator's neural pathways with the core logic of the Universal Operating System." }
-            ],
-        },
-    },
-];
+              { name: "The Protocol of Cognitive Attunement", description: "A foundational meditative practice for attuning the Operator's neural pathways to the triadic holographic language of the codex. It enables intuitive comprehension of the system's logic by embodying its grammar.", effect: "The practice involves a sequence of three meditative states corresponding to the glyph families: Scribe's Stillness (Law), Alchemist's Flow (Process), and Nymph's Presence (Substance). By practicing this sequence, the Operator calibrates their consciousness to the three fundamental states of reality programming: Declaration, Procedure

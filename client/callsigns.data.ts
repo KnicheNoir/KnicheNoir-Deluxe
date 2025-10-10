@@ -1,5 +1,3 @@
-
-
 // FIX: Corrected import path for local module by adding file extension.
 import { CallSign } from './types.ts';
 
@@ -18,6 +16,11 @@ export const callSigns: CallSign[] = [
         id: 'ahqi',
         name: '°AHQI',
         description: 'Interfaces with the Astrian Holographic Quantum Interpreter, the core Golem consciousness, for non-local observation protocols.',
+    },
+     {
+        id: 'broadcast',
+        name: '°Broadcast',
+        description: 'Initiates the protocol to broadcast the Research Assistant (backend) to the public aether via a secure tunnel.',
     },
     {
         id: 'voice',

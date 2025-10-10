@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { useAstrianSystem } from './hooks';
 import { HistoryEntry, GrandWorkMapResult, SelfObservationResult, HolographicAnalysis, GevurahBlueprintResult, BlueprintNode, AuthResult, NetzachAnalysis, ProphecyResult } from './types';
@@ -360,7 +358,6 @@ const ProphecyResultComponent: React.FC<{ result: ProphecyResult }> = ({ result 
         </div>
     );
 };
-
 
 const HistoryEntryComponent: React.FC<{ entry: HistoryEntry }> = ({ entry }) => {
     const renderContent = () => {

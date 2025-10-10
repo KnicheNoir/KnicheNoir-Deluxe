@@ -144,6 +144,11 @@ main {
     text-align: center;
 }
 
+.auth-result {
+    font-weight: bold;
+    font-style: italic;
+}
+
 /* Footer & Command Input */
 footer {
     padding: 0.5rem 1rem;

@@ -1,22 +1,14 @@
 {
-  "name": "the-astrian-key-°3-⅓",
+  "name": "the-astrian-key-monorepo",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "@google/genai": "0.14.1",
-    "html-to-image": "1.11.11"
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "dev": "concurrently \"npm:dev:client\" \"npm:dev:server\"",
+    "install": "npm install --prefix client && npm install --prefix server"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "concurrently": "^8.2.2"
   }
 }

@@ -1,5 +1,3 @@
-
-
 // =================================================================================================
 // --- DA'AT ROUTER (THE FIELD OF KNOWLEDGE) ---
 // This is not a router in the conventional sense. It is the manifest consciousness of the
@@ -8,7 +6,7 @@
 // pre-existing, coherent state. It is the heart of the "work is already done" principle.
 // =================================================================================================
 // FIX: Add missing import for 'HistoryEntry' to resolve a type error.
-import { HistoryEntry, HistoryEntryType, AddHistoryEntry, IngestionAnalysis, AstromorphologicalTriangulation, LivingGlyph, GevurahSimulationResult, GevurahBlueprintResult, CelestialCipherAnalysis } from './types.ts';
+import { HistoryEntry, HistoryEntryType, AddHistoryEntry, IngestionAnalysis, AstromorphologicalTriangulation, LivingGlyph, GevurahSimulationResult, GevurahBlueprintResult, CelestialCipherAnalysis, User } from './types.ts';
 import { astrianEngine } from './engine.ts';
 import { sephirotEngine } from './sephirot.engine.ts';
 import { chesedEngine } from './chesed.engine.ts';
@@ -30,16 +28,24 @@ import { livingLibrary } from './living-library.ts';
 import { tikkunHaKolScript } from './gevurah-script-tikkun-hakol.ts';
 import { performHolographicSelfObservation } from './ahqi.kernel.ts';
 import { chesedNarrativeEngine } from './chesed.narrative.engine.ts';
-import { backendEmulator } from './backend.emulator.ts';
 import { prophecyEngine } from './prophecy.engine.ts';
 
+const BROADCAST_URL_KEY = 'astrian_broadcast_url';
 
-type CommandHandler = (args: string[], addHistory: AddHistoryEntry) => Promise<void>;
+interface RouterContext {
+    setCurrentUser: (user: User | null) => void;
+    currentUser: User | null;
+    sessionHistory: HistoryEntry[];
+    setSessionHistory: (history: HistoryEntry[]) => void;
+    apiBaseUrl: string;
+    setApiBaseUrl: (url: string) => void;
+}
+
+type CommandHandler = (args: string[], addHistory: AddHistoryEntry, context: RouterContext) => Promise<void>;
 
 class DaatRouter {
     private commands: Map<string, CommandHandler> = new Map();
     private pendingFilePurpose: 'ingest' | 'blueprint-zip' | null = null;
-    private filePickerResolver: ((file: File) => void) | null = null;
 
     constructor() {
         this.registerCommands();
@@ -67,6 +73,7 @@ class DaatRouter {
         this.commands.set('ingest', this.handleIngest.bind(this));
         this.commands.set('help', this.handleHelp.bind(this));
         this.commands.set('session', this.handleSession.bind(this));
+        this.commands.set('broadcast', this.handleBroadcast.bind(this));
 
         // Gevurah & Advanced Protocols
         this.commands.set('gevurah', this.handleGevurah.bind(this));
@@ -83,7 +90,7 @@ class DaatRouter {
         this.commands.set('play', this.handlePlay.bind(this));
         this.commands.set('meditate', this.handleMeditate.bind(this));
         
-        // Emulated Backend Commands
+        // Real Backend Commands
         this.commands.set('register', this.handleRegister.bind(this));
         this.commands.set('login', this.handleLogin.bind(this));
         this.commands.set('logout', this.handleLogout.bind(this));
@@ -94,13 +101,13 @@ class DaatRouter {
         this.commands.set('ahqi', this.handleChesedNarrate.bind(this));
     }
 
-    public async route(command: string, addHistory: AddHistoryEntry): Promise<void> {
+    public async route(command: string, addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const [cmd, ...args] = command.trim().split(/\s+/);
         const cleanCmd = cmd.toLowerCase().startsWith('°') ? cmd.substring(1) : cmd.toLowerCase();
 
         const handler = this.commands.get(cleanCmd);
         if (handler) {
-            await handler(args, addHistory);
+            await handler(args, addHistory, context);
         } else {
             // Default to narrative engine for unknown commands
             addHistory('SYSTEM_PROCESSING', `Engaging Chesed Narrative Engine for query: "${command}"`, 'engine');
@@ -111,15 +118,12 @@ class DaatRouter {
 
     private promptForFile(): Promise<File> {
         return new Promise((resolve, reject) => {
-            this.filePickerResolver = resolve;
             const input = document.createElement('input');
             input.type = 'file';
             input.onchange = (e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
-                if (file && this.filePickerResolver) {
-                    this.filePickerResolver(file);
-                    this.filePickerResolver = null;
-                    this.pendingFilePurpose = null;
+                if (file) {
+                    resolve(file);
                 } else {
                     reject(new Error('File selection was cancelled by the Operator.'));
                 }
@@ -140,6 +144,9 @@ class DaatRouter {
         }
         this.pendingFilePurpose = null;
     }
+
+    // Command Handlers from here...
+    // Most handlers don't need the context, so we can ignore it.
 
     private async handleObserve(args: string[], addHistory: AddHistoryEntry): Promise<void> {
         const query = args.join(' ');
@@ -174,7 +181,6 @@ class DaatRouter {
             return;
         }
         addHistory('SYSTEM_PROCESSING', `Engaging Grand Celestial Cipher: ${from} to ${to}...`, 'engine');
-        // This is a conceptual implementation based on the self-correction script's lore.
         const fromData = willowData.find(w => w.name.toLowerCase() === from.toLowerCase());
         const toData = willowData.find(w => w.name.toLowerCase() === to.toLowerCase());
         
@@ -190,7 +196,6 @@ class DaatRouter {
         };
         addHistory('CELESTIAL_CIPHER_ANALYSIS', result, 'system');
     }
-
 
     private async handleTransliterate(args: string[], addHistory: AddHistoryEntry): Promise<void> {
         const text = args.join(' ');
@@ -235,7 +240,7 @@ class DaatRouter {
             return;
         }
         const gematria = gematriaEngine.observe(concept);
-        const frequency = gematria % 440 + 110; // Simple mapping to audible range
+        const frequency = gematria % 440 + 110;
         const result = {
             concept,
             gematria,
@@ -290,7 +295,8 @@ class DaatRouter {
         if (!source) {
              addHistory('SYSTEM', 'Awaiting Operator to provide a local file for ingestion...', 'system');
              this.pendingFilePurpose = 'ingest';
-             await this.promptForFile();
+             const file = await this.promptForFile();
+             await this.processFile(file, addHistory);
         } else if (source.startsWith('http')) {
             addHistory('SYSTEM_PROCESSING', `Initiating aetheric ingestion for: ${source}`, 'engine');
             const result = await chesedEngine.runAethericIngestion(source, (message) => {
@@ -302,19 +308,64 @@ class DaatRouter {
         }
     }
     
-    public handleSession(args: string[], addHistory: AddHistoryEntry, sessionHistory: HistoryEntry[] = [], setSessionHistory: Function): void {
+    private async handleSession(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const action = args[0];
+        const apiPath = context.apiBaseUrl;
+
         if (action === 'save') {
-            const result = backendEmulator.saveSession(sessionHistory);
-            addHistory('SYSTEM', result.message, 'system');
+             try {
+                const response = await fetch(`${apiPath}/session/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ history: context.sessionHistory })
+                });
+                const result = await response.json();
+                addHistory('AUTH_RESULT', result, 'system');
+            } catch (e) {
+                addHistory('ERROR', 'Failed to save session. Is the server running and the broadcast URL correct?', 'system');
+            }
         } else if (action === 'load') {
-            const result = backendEmulator.loadSession();
-            addHistory('SYSTEM', result.message, 'system');
-            if (result.success && result.history) {
-                setSessionHistory(result.history);
+            try {
+                const response = await fetch(`${apiPath}/session/load`);
+                const result = await response.json();
+                addHistory('AUTH_RESULT', result, 'system');
+                if (result.success && result.history) {
+                    context.setSessionHistory(result.history);
+                }
+            } catch (e) {
+                addHistory('ERROR', 'Failed to load session. Is the server running and the broadcast URL correct?', 'system');
             }
         } else {
             addHistory('ERROR', 'Usage: °session <save|load>. Requires login.', 'system');
+        }
+    }
+
+    private async handleBroadcast(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
+        const action = args[0];
+        if (action === 'start') {
+            addHistory('SYSTEM_PROCESSING', 'Querying the vessel for its aetheric address...', 'engine');
+            try {
+                const response = await fetch(`${context.apiBaseUrl}/broadcast`);
+                const data = await response.json();
+                if (data.url) {
+                    addHistory('SYSTEM', `Aetheric channel is manifest at: ${data.url}\nAttune the Instrument with: °broadcast ${data.url}`, 'system');
+                } else {
+                    addHistory('ERROR', data.error || 'The vessel did not respond with a valid address.', 'system');
+                }
+            } catch (error) {
+                 addHistory('ERROR', 'Could not query the vessel. Ensure the Research Assistant is running.', 'system');
+            }
+        } else if (action === 'stop') {
+            localStorage.removeItem(BROADCAST_URL_KEY);
+            context.setApiBaseUrl('/api');
+            addHistory('SYSTEM', 'Broadcast stopped. The Instrument will now communicate with the local vessel.', 'system');
+        } else if (action && (action.startsWith('http://') || action.startsWith('https://'))) {
+            const url = action;
+            localStorage.setItem(BROADCAST_URL_KEY, url);
+            context.setApiBaseUrl(url);
+            addHistory('SYSTEM', `Broadcast channel established. The Instrument is now attuned to the aetheric address: ${url}`, 'system');
+        } else {
+            addHistory('ERROR', 'Usage: °broadcast <start|stop|ngrok_url>', 'system');
         }
     }
 
@@ -330,7 +381,6 @@ class DaatRouter {
             return;
         }
         addHistory('SYSTEM_PROCESSING', `Engaging AstrianOS for Grand Query: "${problem}"`, 'engine');
-        // A placeholder for extracting parameters from the query
         const params = { numA: 48, numB: 18 }; 
         const result = astrianOS.executeGrandQuery(problem, params);
         addHistory('GRAND_QUERY_EXECUTION_RESULT', result, 'system');
@@ -369,7 +419,8 @@ class DaatRouter {
 
         addHistory('SYSTEM', 'Awaiting Operator to provide the .zip archive for blueprinting...', 'system');
         this.pendingFilePurpose = 'blueprint-zip';
-        await this.promptForFile();
+        const file = await this.promptForFile();
+        await this.processFile(file, addHistory);
     }
     
     private async handleGevurahScan(args: string[], addHistory: AddHistoryEntry): Promise<void> {
@@ -436,7 +487,6 @@ class DaatRouter {
             return;
         }
         const chakra = getChakraForIntent(intent);
-        // This would be expanded to use musicEngine to play the solfeggio frequency
         const result = {
             intent: intent,
             chakra: chakra,
@@ -445,35 +495,66 @@ class DaatRouter {
         addHistory('MEDITATION_SESSION', result, 'system');
     }
     
-    private async handleRegister(args: string[], addHistory: AddHistoryEntry): Promise<void> {
+    private async handleRegister(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const [username, password] = args;
+        const apiPath = context.apiBaseUrl;
         if (!username || !password) {
             addHistory('ERROR', 'Usage: °register <username> <password>', 'system');
             return;
         }
-        const result = backendEmulator.register(username, password);
-        addHistory('AUTH_RESULT', result, 'system');
+        try {
+            const response = await fetch(`${apiPath}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            addHistory('AUTH_RESULT', result, 'system');
+        } catch (e) {
+            addHistory('ERROR', 'Failed to register. Is the server running and the broadcast URL correct?', 'system');
+        }
     }
     
-    private async handleLogin(args: string[], addHistory: AddHistoryEntry): Promise<void> {
+    private async handleLogin(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
         const [username, password] = args;
+        const apiPath = context.apiBaseUrl;
         if (!username || !password) {
             addHistory('ERROR', 'Usage: °login <username> <password>', 'system');
             return;
         }
-        const result = backendEmulator.login(username, password);
-        addHistory('AUTH_RESULT', result, 'system');
+         try {
+            const response = await fetch(`${apiPath}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            if (result.success) {
+                context.setCurrentUser(result.user);
+            }
+            addHistory('AUTH_RESULT', result, 'system');
+        } catch (e) {
+            addHistory('ERROR', 'Failed to login. Is the server running and the broadcast URL correct?', 'system');
+        }
     }
 
-    private async handleLogout(args: string[], addHistory: AddHistoryEntry): Promise<void> {
-        const result = backendEmulator.logout();
-        addHistory('AUTH_RESULT', result, 'system');
+    private async handleLogout(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
+        const apiPath = context.apiBaseUrl;
+        try {
+            const response = await fetch(`${apiPath}/logout`, { method: 'POST' });
+            const result = await response.json();
+            if (result.success) {
+                context.setCurrentUser(null);
+            }
+            addHistory('AUTH_RESULT', result, 'system');
+        } catch (e) {
+            addHistory('ERROR', 'Failed to logout. Is the server running and the broadcast URL correct?', 'system');
+        }
     }
     
-    private async handleWhoAmI(args: string[], addHistory: AddHistoryEntry): Promise<void> {
-        const user = backendEmulator.getCurrentUser();
-        if (user) {
-            addHistory('SYSTEM', `Authenticated as Operator: ${user.name}`, 'system');
+    private async handleWhoAmI(args: string[], addHistory: AddHistoryEntry, context: RouterContext): Promise<void> {
+        if (context.currentUser) {
+            addHistory('SYSTEM', `Authenticated as Operator: ${context.currentUser.name}`, 'system');
         } else {
             addHistory('SYSTEM', 'Not authenticated.', 'system');
         }
