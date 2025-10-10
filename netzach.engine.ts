@@ -5,7 +5,8 @@
 // chance, by observing their state through the living web.
 // =================================================================================================
 import { GoogleGenAI, Type } from "@google/genai";
-import { NetzachAnalysis } from './types.ts';
+// FIX: Import missing MarketAnalysis type.
+import { NetzachAnalysis, MarketAnalysis } from './types.ts';
 import { GEMINI_MODEL } from './constants.ts';
 
 // A simple function to safely parse the model's JSON output.
@@ -38,6 +39,40 @@ class NetzachEngine {
             throw new Error("API_KEY environment variable not set for Netzach Engine.");
         }
         this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    }
+
+    // FIX: Add missing analyzeMarket method to provide simulated market analysis.
+    public analyzeMarket(symbol: string, startDate: string, endDate: string): MarketAnalysis {
+        // This is a deterministic, simulated analysis based on the canonical Gevurah script.
+        return {
+            symbol,
+            startDate,
+            endDate,
+            narrative: `The journey of ${symbol} through this period was a classic narrative of Netzach (Endurance). It was primarily driven by its inherent archetype of The Sovereign Head, facing periods of synergistic expansion under The Grasping Palm and dissonant contraction under The Final Seal. The overall alignment suggests a successful, though challenging, path toward its objective.`,
+            holographicBenchmark: {
+                primaryArchetype: 'The Sovereign Head (The archetype of leadership, value, and the core identity of the concept.)',
+                synergyArchetypes: ['The Grasping Palm (The archetype of expansion, opportunity, and benevolent growth.)'],
+                dissonanceArchetypes: ['The Final Seal (The archetype of structure, limitation, and difficult lessons.)'],
+                overallAlignment: 'Aligned through Endurance',
+            },
+            entries: [
+                {
+                    date: startDate,
+                    archetypalForce: 'The Grasping Palm',
+                    narrative: 'The cycle began under a period of Jupiterian expansion, fostering growth and investor optimism.',
+                },
+                {
+                    date: 'Mid-Period',
+                    archetypalForce: 'The Final Seal',
+                    narrative: 'A Saturnine contraction introduced significant challenges, testing the concept\'s foundational structure and resolve.',
+                },
+                {
+                    date: endDate,
+                    archetypalForce: 'The Sovereign Head',
+                    narrative: 'The cycle concluded with its primary archetype reasserting dominance, integrating the lessons of the contraction to achieve a more stable state of victory.',
+                },
+            ],
+        };
     }
 
     /**

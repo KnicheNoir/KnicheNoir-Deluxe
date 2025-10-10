@@ -1,5 +1,3 @@
-
-
 // =================================================================================================
 // --- UNIVERSAL TYPE DEFINITIONS ---
 // This file serves as the single source of truth for all data structures in the application.
@@ -242,6 +240,25 @@ export interface NetzachAnalysis {
     narrative: string;
     snapshot: string[];
     error?: string;
+}
+
+// FIX: Add missing MarketAnalysis type definition.
+export interface MarketAnalysis {
+  symbol: string;
+  startDate: string;
+  endDate: string;
+  narrative: string;
+  holographicBenchmark: {
+    primaryArchetype: string;
+    synergyArchetypes: string[];
+    dissonanceArchetypes: string[];
+    overallAlignment: string;
+  };
+  entries: {
+    date: string;
+    archetypalForce: string;
+    narrative: string;
+  }[];
 }
 
 // FIX: Add missing CelestialCipherAnalysis type definition to resolve import error.
